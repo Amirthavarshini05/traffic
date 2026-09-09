@@ -1,0 +1,7 @@
+camera_id,longitude,latitude,nearest_road,highway,distance_m,oneway
+CAM01,80.2045,13.0068,,residential,52.6,True
+CAM02,80.2505,13.0528,Uttamar Gandhi Salai (Nungambakkam High Road),primary,15.33,True
+CAM03,80.2462,13.0066,Rajiv Gandhi IT Expressway,primary,2.07,True
+CAM04,80.2481,12.9784,Annai Sathya Salai,residential,63.14,False
+CAM06,80.222,12.975,Sarathy Nagar 5th street,residential,4.58,False
+CAM07,80.2495,12.94,,residential,8.32,False
