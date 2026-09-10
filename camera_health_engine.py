@@ -1,6 +1,10 @@
 import psycopg2
-from datetime import datetime, timezone
 import json
+
+
+# =========================================================
+# Database Configuration
+# =========================================================
 
 DB_CONFIG = {
     "host": "localhost",
@@ -11,28 +15,45 @@ DB_CONFIG = {
 }
 
 
+# =========================================================
+# Health Configuration
+# =========================================================
+
 HEALTHY_LIMIT_MINUTES = 5
 WARNING_LIMIT_MINUTES = 15
 
+
+# =========================================================
+# Database Connection
+# =========================================================
 
 def get_connection():
     return psycopg2.connect(**DB_CONFIG)
 
 
+# =========================================================
+# Get Last Event for Every Camera
+# =========================================================
+
 def get_camera_last_events(conn):
+
     query = """
         SELECT
             c.camera_id,
             c.name,
             c.status AS configured_status,
             MAX(e.observed_at) AS last_event_at
+
         FROM cameras c
+
         LEFT JOIN events e
             ON e.camera_id = c.camera_id
+
         GROUP BY
             c.camera_id,
             c.name,
             c.status
+
         ORDER BY
             c.camera_id;
     """
@@ -42,7 +63,36 @@ def get_camera_last_events(conn):
         return cur.fetchall()
 
 
-def calculate_camera_health(last_event_at, reference_time):
+# =========================================================
+# Get Latest Event Time in Entire System
+# =========================================================
+
+def get_latest_event_time(conn):
+
+    query = """
+        SELECT MAX(observed_at)
+        FROM events
+        WHERE observed_at IS NOT NULL;
+    """
+
+    with conn.cursor() as cur:
+        cur.execute(query)
+        row = cur.fetchone()
+
+    if not row:
+        return None
+
+    return row[0]
+
+
+# =========================================================
+# Calculate Camera Health
+# =========================================================
+
+def calculate_camera_health(
+    last_event_at,
+    reference_time
+):
 
     if last_event_at is None:
         return "OFFLINE", None
@@ -59,16 +109,35 @@ def calculate_camera_health(last_event_at, reference_time):
         seconds_since_event / 60
     )
 
+    # -----------------------------------------------------
+    # Protect against future timestamps
+    # -----------------------------------------------------
+
+    if minutes_since_event < 0:
+        minutes_since_event = 0.0
+
+    # -----------------------------------------------------
+    # Determine health status
+    # -----------------------------------------------------
+
     if minutes_since_event <= HEALTHY_LIMIT_MINUTES:
+
         health_status = "HEALTHY"
 
     elif minutes_since_event <= WARNING_LIMIT_MINUTES:
+
         health_status = "WARNING"
 
     else:
+
         health_status = "OFFLINE"
 
     return health_status, minutes_since_event
+
+
+# =========================================================
+# Save Camera Health Alert
+# =========================================================
 
 def save_camera_health_alert(
     conn,
@@ -78,20 +147,30 @@ def save_camera_health_alert(
     minutes_since_event,
     detected_at
 ):
+
+    # Healthy cameras don't require alerts.
+
     if health_status == "HEALTHY":
         return None
 
-    # Check whether an active alert already exists
+    # -----------------------------------------------------
+    # Check for existing active alert
+    # -----------------------------------------------------
+
     check_query = """
         SELECT alert_id
+
         FROM alerts
+
         WHERE alert_type = 'CAMERA_HEALTH'
           AND camera_id = %s
           AND status = 'ACTIVE'
+
         LIMIT 1;
     """
 
     with conn.cursor() as cur:
+
         cur.execute(
             check_query,
             (camera_id,)
@@ -102,7 +181,10 @@ def save_camera_health_alert(
     if existing_alert:
         return None
 
-    # Create a new alert
+    # -----------------------------------------------------
+    # Create new alert
+    # -----------------------------------------------------
+
     insert_query = """
         INSERT INTO alerts (
             alert_type,
@@ -116,6 +198,7 @@ def save_camera_health_alert(
             status,
             metadata
         )
+
         VALUES (
             %s,
             %s,
@@ -128,8 +211,12 @@ def save_camera_health_alert(
             'ACTIVE',
             %s
         )
+
         RETURNING alert_id;
     """
+
+    # OFFLINE = HIGH
+    # WARNING = MEDIUM
 
     severity = (
         "HIGH"
@@ -148,10 +235,14 @@ def save_camera_health_alert(
         "camera_id": camera_id,
         "camera_name": camera_name,
         "health_status": health_status,
-        "minutes_since_last_event": minutes_since_event
+        "minutes_since_last_event": round(
+            minutes_since_event,
+            2
+        )
     }
 
     with conn.cursor() as cur:
+
         cur.execute(
             insert_query,
             (
@@ -171,19 +262,33 @@ def save_camera_health_alert(
     return alert_id
 
 
+# =========================================================
+# Main
+# =========================================================
+
 if __name__ == "__main__":
 
     conn = get_connection()
 
     try:
 
-        # --------------------------------------------------
-        # Test reference time
-        # --------------------------------------------------
+        # -------------------------------------------------
+        # Determine reference time dynamically
+        # -------------------------------------------------
 
-        reference_time = datetime.fromisoformat(
-            "2026-09-07T15:15:00+05:30"
-        )
+        reference_time = get_latest_event_time(conn)
+
+        if reference_time is None:
+
+            print(
+                "\nNo events found in the database."
+            )
+
+            raise SystemExit(0)
+
+        # -------------------------------------------------
+        # Get camera information
+        # -------------------------------------------------
 
         cameras = get_camera_last_events(conn)
 
@@ -195,6 +300,10 @@ if __name__ == "__main__":
         )
 
         print("=" * 70)
+
+        # -------------------------------------------------
+        # Analyze every camera
+        # -------------------------------------------------
 
         for camera in cameras:
 
@@ -210,10 +319,16 @@ if __name__ == "__main__":
                 )
             )
 
+            # -------------------------------------------------
+            # Format display
+            # -------------------------------------------------
+
             if minutes_since_event is None:
+
                 time_text = "No events"
 
             else:
+
                 time_text = (
                     f"{minutes_since_event:.1f} minutes ago"
                 )
@@ -224,6 +339,11 @@ if __name__ == "__main__":
                 f"{time_text:<20} | "
                 f"Configured: {configured_status}"
             )
+
+            # -------------------------------------------------
+            # Save alert if necessary
+            # -------------------------------------------------
+
             alert_id = save_camera_health_alert(
                 conn,
                 camera_id,
@@ -234,8 +354,12 @@ if __name__ == "__main__":
             )
 
             if alert_id:
+
                 print(
-                    f"  -> Alert created: {alert_id}"
+                    f"  -> Alert created: "
+                    f"{alert_id}"
                 )
+
     finally:
+
         conn.close()

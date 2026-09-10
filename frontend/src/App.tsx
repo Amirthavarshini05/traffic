@@ -107,6 +107,16 @@ interface CameraRoute {
   };
 }
 
+interface RealtimeTrajectory {
+  trajectory_id: number;
+  vehicle_id: string;
+  from_camera_id: string;
+  to_camera_id: string;
+  start_event_id: number;
+  end_event_id: number;
+  event_type: string;
+}
+
 interface CameraRoutesResponse {
   routes: CameraRoute[];
 }
@@ -118,6 +128,7 @@ function App() {
   const [cameras, setCameras] = useState<Camera[]>([]);
   const [cameraHealth, setCameraHealth] = useState<CameraHealth[]>([]);
   const [routes, setRoutes] = useState<CameraRoute[]>([]);
+  const [realtimeTrajectory, setRealtimeTrajectory] = useState<RealtimeTrajectory | null>(null);
 
   // Fetch camera data from FastAPI
   useEffect(() => {
@@ -170,6 +181,37 @@ useEffect(() => {
     .catch((error) => {
       console.error("Camera routes API error:", error);
     });
+}, []);
+
+  // Connect to realtime traffic WebSocket
+useEffect(() => {
+  const websocket = new WebSocket(
+    "ws://127.0.0.1:8000/ws/traffic"
+  );
+
+  websocket.onopen = () => {
+    console.log("Realtime WebSocket connected");
+  };
+
+  websocket.onmessage = (event) => {
+  const data: RealtimeTrajectory = JSON.parse(event.data);
+
+  console.log("Realtime traffic event:", data);
+
+  setRealtimeTrajectory(data);
+};
+
+  websocket.onerror = (error) => {
+    console.error("WebSocket error:", error);
+  };
+
+  websocket.onclose = () => {
+    console.log("Realtime WebSocket disconnected");
+  };
+
+  return () => {
+    websocket.close();
+  };
 }, []);
 
   // Create MapLibre map
@@ -322,6 +364,7 @@ useEffect(() => {
 }, [routes]);
 
   return (
+  <>
     <div
       ref={mapContainer}
       style={{
@@ -329,7 +372,29 @@ useEffect(() => {
         height: "100vh",
       }}
     />
-  );
+
+    {realtimeTrajectory && (
+      <div
+        style={{
+          position: "absolute",
+          top: "20px",
+          left: "20px",
+          background: "white",
+          padding: "12px",
+          borderRadius: "8px",
+          zIndex: 1000,
+        }}
+      >
+        <strong>Realtime Traffic</strong>
+        <br />
+        Vehicle: {realtimeTrajectory.vehicle_id}
+        <br />
+        Route: {realtimeTrajectory.from_camera_id} →{" "}
+        {realtimeTrajectory.to_camera_id}
+      </div>
+    )}
+  </>
+);
 }
 
 export default App;

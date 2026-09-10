@@ -1,8 +1,9 @@
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
+from .realtime import manager, redis_trajectory_listener
 from fastapi.middleware.cors import CORSMiddleware
-from database import get_connection
+from .database import get_connection
 from datetime import datetime, timezone
-from schemas import (
+from .schemas import (
     VehicleTrajectoryResponse,
     ODMatrixResponse,
     HistoricalCongestionResponse,
@@ -20,8 +21,14 @@ from schemas import (
     CameraRoutesResponse    
 )
 import json
+import asyncio
 
 app = FastAPI(title="City Traffic API")
+@app.on_event("startup")
+async def startup_realtime_listener():
+    asyncio.create_task(
+        redis_trajectory_listener()
+    )
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -458,8 +465,19 @@ def get_camera_health():
         conn.close()
 
     # Use the actual current server time for the API.
-    reference_time = datetime.now(timezone.utc)
+    # Use the latest event timestamp as the reference time.
+        # This keeps synthetic/historical traffic data consistent.
+        reference_time = max(
+            (
+                row[3]
+                for row in rows
+                if row[3] is not None
+            ),
+            default=None
+        )
 
+        if reference_time is None:
+            reference_time = datetime.now(timezone.utc)
     cameras = []
 
     for row in rows:
@@ -977,3 +995,19 @@ def get_camera_routes():
     return {
         "routes": routes
     }
+@app.websocket("/ws/traffic")
+async def traffic_websocket(websocket: WebSocket):
+
+    await manager.connect(websocket)
+
+    print("Dashboard WebSocket connected.")
+
+    try:
+        while True:
+            await websocket.receive_text()
+
+    except WebSocketDisconnect:
+
+        manager.disconnect(websocket)
+
+        print("Dashboard WebSocket disconnected.")

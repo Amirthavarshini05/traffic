@@ -1,5 +1,5 @@
 import psycopg2
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 
 
@@ -268,24 +268,22 @@ def get_origin_cameras(current_rows):
     )
 
 
-if __name__ == "__main__":
+def run_collective_movement_analysis(
+    start_time,
+    end_time,
+    save_alerts=True
+):
+    """
+    Run collective movement analysis for a specific
+    analysis window.
+
+    This function is used by the future shared
+    analytics worker.
+    """
 
     conn = get_connection()
 
     try:
-
-        # --------------------------------------------------
-        # Analysis window
-        # --------------------------------------------------
-
-        start_time = datetime.fromisoformat(
-            "2026-09-07T15:00:00+05:30"
-        )
-
-        end_time = (
-            start_time
-            + timedelta(minutes=WINDOW_MINUTES)
-        )
 
         # --------------------------------------------------
         # 1. Get current movement counts
@@ -319,6 +317,8 @@ if __name__ == "__main__":
                 "\nNo vehicle movements found "
                 "in the current window."
             )
+
+            return []
 
         # --------------------------------------------------
         # 3. Analyze every origin camera
@@ -499,18 +499,74 @@ if __name__ == "__main__":
         # 5. Save alerts
         # --------------------------------------------------
 
-        for anomaly in all_anomalies:
+        if save_alerts:
 
-            alert_id = save_collective_alert(
-                conn,
-                anomaly,
-                end_time
-            )
+            for anomaly in all_anomalies:
 
-            print(
-                f"Alert created: {alert_id}"
-            )
+                alert_id = save_collective_alert(
+                    conn,
+                    anomaly,
+                    end_time
+                )
+
+                print(
+                    f"Alert created: {alert_id}"
+                )
+
+        return all_anomalies
 
     finally:
 
         conn.close()
+
+
+if __name__ == "__main__":
+
+    # ------------------------------------------------------
+    # Standalone test mode
+    # ------------------------------------------------------
+    #
+    # Uses the latest trajectory timestamp as the end of
+    # the analysis window, making the standalone test
+    # dynamic instead of using a hard-coded historical date.
+    #
+
+    conn = get_connection()
+
+    try:
+
+        with conn.cursor() as cur:
+
+            cur.execute(
+                """
+                SELECT MAX(ended_at)
+                FROM trajectories;
+                """
+            )
+
+            latest_trajectory_time = cur.fetchone()[0]
+
+    finally:
+
+        conn.close()
+
+    if latest_trajectory_time is None:
+
+        print(
+            "No trajectory data found. "
+            "Collective movement analysis skipped."
+        )
+
+    else:
+
+        end_time = latest_trajectory_time
+
+        start_time = (
+            end_time
+            - timedelta(minutes=WINDOW_MINUTES)
+        )
+
+        run_collective_movement_analysis(
+            start_time,
+            end_time
+        )

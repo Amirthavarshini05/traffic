@@ -70,28 +70,25 @@ def get_travel_time_bounds(
 # Check whether predefined route exists
 # ---------------------------------------------------------
 
-def get_transition_count(
+# ---------------------------------------------------------
+# Check whether predefined camera route exists
+# ---------------------------------------------------------
+
+def get_predefined_route_count(
     conn,
     from_camera,
     to_camera
 ):
+
     query = """
         SELECT COUNT(*)
-        FROM (
-            SELECT
-                camera_id,
-                LAG(camera_id) OVER (
-                    PARTITION BY vehicle_id
-                    ORDER BY observed_at, event_id
-                ) AS previous_camera_id
-            FROM events
-            WHERE vehicle_id ~ '^[0-9]+$'
-        ) x
-        WHERE previous_camera_id = %s
-          AND camera_id = %s;
+        FROM camera_routes
+        WHERE starting_node = %s
+          AND ending_node = %s;
     """
 
     with conn.cursor() as cur:
+
         cur.execute(
             query,
             (
@@ -176,18 +173,23 @@ def detect_route_deviations(conn):
             previous_observed_at
         ) = row
 
-        transition_count = get_transition_count(
+        # Ignore repeated observations at the same camera
+        if previous_camera == current_camera:
+            continue
+
+        # ---------------------------------------------------------
+        # Check predefined OSM camera route
+        # ---------------------------------------------------------
+
+        predefined_route_count = get_predefined_route_count(
             conn,
             previous_camera,
             current_camera
         )
 
-        # Ignore repeated observations at the same camera
-        if previous_camera == current_camera:
-            continue
-
-        # Established historical transition
-        if transition_count >= 3:
+        # If a valid predefined camera route exists,
+        # this is NOT a route deviation.
+        if predefined_route_count > 0:
             continue
 
         message = (

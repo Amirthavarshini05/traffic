@@ -1,14 +1,16 @@
 from app.database import get_connection
+import json
 
 
-# ---------------------------------------------------------
+# =========================================================
 # Configuration
-# ---------------------------------------------------------
+# =========================================================
 
 SOURCE_CONGESTION_WEIGHT = 40.0
 FLOW_PROBABILITY_WEIGHT = 30.0
 CONTINUATION_WEIGHT = 15.0
 DOWNSTREAM_CONGESTION_WEIGHT = 15.0
+
 
 # Evidence factors
 EVIDENCE_LOW = 0.50
@@ -17,11 +19,12 @@ EVIDENCE_HIGH = 0.90
 EVIDENCE_VERY_HIGH = 1.00
 
 
-# ---------------------------------------------------------
+# =========================================================
 # Evidence strength
-# ---------------------------------------------------------
+# =========================================================
 
 def get_evidence_level(sample_count):
+
     if sample_count < 5:
         return "LOW", EVIDENCE_LOW
 
@@ -34,9 +37,9 @@ def get_evidence_level(sample_count):
     return "VERY HIGH", EVIDENCE_VERY_HIGH
 
 
-# ---------------------------------------------------------
+# =========================================================
 # Calculate propagation score
-# ---------------------------------------------------------
+# =========================================================
 
 def calculate_propagation_score(
     source_delay_percent,
@@ -45,31 +48,47 @@ def calculate_propagation_score(
     downstream_delay_percent,
     continuation_samples
 ):
+
+    # -----------------------------------------------------
     # Source congestion contribution
+    # -----------------------------------------------------
+
     source_score = min(
         (float(source_delay_percent) / 50.0)
         * SOURCE_CONGESTION_WEIGHT,
         SOURCE_CONGESTION_WEIGHT
     )
 
+    # -----------------------------------------------------
     # Downstream flow contribution
+    # -----------------------------------------------------
+
     flow_score = (
         float(downstream_probability_percent) / 100.0
     ) * FLOW_PROBABILITY_WEIGHT
 
+    # -----------------------------------------------------
     # Continuation contribution
+    # -----------------------------------------------------
+
     continuation_score = (
         float(continuation_rate_percent) / 100.0
     ) * CONTINUATION_WEIGHT
 
+    # -----------------------------------------------------
     # Existing downstream congestion contribution
+    # -----------------------------------------------------
+
     downstream_score = min(
         (float(downstream_delay_percent) / 50.0)
         * DOWNSTREAM_CONGESTION_WEIGHT,
         DOWNSTREAM_CONGESTION_WEIGHT
     )
 
+    # -----------------------------------------------------
     # Raw score
+    # -----------------------------------------------------
+
     raw_score = (
         source_score
         + flow_score
@@ -77,14 +96,20 @@ def calculate_propagation_score(
         + downstream_score
     )
 
+    # -----------------------------------------------------
     # Evidence adjustment
+    # -----------------------------------------------------
+
     evidence_level, evidence_factor = get_evidence_level(
         continuation_samples
     )
 
     final_score = raw_score * evidence_factor
 
+    # -----------------------------------------------------
     # Propagation classification
+    # -----------------------------------------------------
+
     if final_score <= 25:
         propagation_level = "LOW"
 
@@ -110,15 +135,16 @@ def calculate_propagation_score(
     }
 
 
-# ---------------------------------------------------------
+# =========================================================
 # Find downstream routes
-# ---------------------------------------------------------
+# =========================================================
 
 def find_downstream_routes(
     conn,
     source_from_camera,
     source_to_camera
 ):
+
     query = """
         WITH source_routes AS (
             SELECT
@@ -132,8 +158,8 @@ def find_downstream_routes(
         SELECT
             d.from_camera_id,
             d.to_camera_id,
-            COUNT(DISTINCT d.vehicle_id)
-                AS downstream_vehicles
+            COUNT(DISTINCT d.vehicle_id) AS downstream_vehicles
+
         FROM source_routes s
 
         JOIN trajectories d
@@ -149,6 +175,7 @@ def find_downstream_routes(
     """
 
     with conn.cursor() as cur:
+
         cur.execute(
             query,
             (
@@ -160,9 +187,9 @@ def find_downstream_routes(
         return cur.fetchall()
 
 
-# ---------------------------------------------------------
+# =========================================================
 # Calculate route flow statistics
-# ---------------------------------------------------------
+# =========================================================
 
 def get_flow_statistics(
     conn,
@@ -171,6 +198,7 @@ def get_flow_statistics(
     downstream_from_camera,
     downstream_to_camera
 ):
+
     query = """
         WITH source_routes AS (
             SELECT
@@ -186,6 +214,7 @@ def get_flow_statistics(
                 s.vehicle_id,
                 d.from_camera_id,
                 d.to_camera_id
+
             FROM source_routes s
 
             JOIN trajectories d
@@ -197,6 +226,7 @@ def get_flow_statistics(
             SELECT
                 COUNT(DISTINCT vehicle_id)
                     AS total_source_vehicles
+
             FROM source_routes
         ),
 
@@ -204,6 +234,7 @@ def get_flow_statistics(
             SELECT
                 COUNT(DISTINCT vehicle_id)
                     AS vehicles_with_continuation
+
             FROM downstream_routes
         ),
 
@@ -211,7 +242,9 @@ def get_flow_statistics(
             SELECT
                 COUNT(DISTINCT vehicle_id)
                     AS downstream_vehicles
+
             FROM downstream_routes
+
             WHERE from_camera_id = %s
               AND to_camera_id = %s
         )
@@ -222,11 +255,14 @@ def get_flow_statistics(
             dc.downstream_vehicles
 
         FROM source_count sc
+
         CROSS JOIN continuation_count cc
+
         CROSS JOIN selected_downstream_count dc;
     """
 
     with conn.cursor() as cur:
+
         cur.execute(
             query,
             (
@@ -246,18 +282,32 @@ def get_flow_statistics(
     continuation = row[1] or 0
     downstream = row[2] or 0
 
+    # -----------------------------------------------------
+    # Continuation rate
+    # -----------------------------------------------------
+
     if total_source > 0:
+
         continuation_rate = (
             continuation / total_source
         ) * 100.0
+
     else:
+
         continuation_rate = 0.0
 
+    # -----------------------------------------------------
+    # Downstream probability
+    # -----------------------------------------------------
+
     if continuation > 0:
+
         downstream_probability = (
             downstream / continuation
         ) * 100.0
+
     else:
+
         downstream_probability = 0.0
 
     return {
@@ -269,9 +319,9 @@ def get_flow_statistics(
     }
 
 
-# ---------------------------------------------------------
+# =========================================================
 # Get latest congestion for a route
-# ---------------------------------------------------------
+# =========================================================
 
 def get_latest_congestion(
     conn,
@@ -279,29 +329,32 @@ def get_latest_congestion(
     to_camera,
     time_window_start=None
 ):
-    query = """
-    SELECT
-        congestion_level,
-        average_delay_percent,
-        average_travel_time_seconds,
-        vehicle_count,
-        time_window_start,
-        time_window_end
-    FROM historical_congestion
 
-    WHERE from_camera_id = %s
-      AND to_camera_id = %s
-      AND (
-            %s IS NULL
-            OR time_window_start = %s
+    query = """
+        SELECT
+            congestion_level,
+            average_delay_percent,
+            average_travel_time_seconds,
+            vehicle_count,
+            time_window_start,
+            time_window_end
+
+        FROM historical_congestion
+
+        WHERE from_camera_id = %s
+          AND to_camera_id = %s
+          AND (
+                %s IS NULL
+                OR time_window_start = %s
           )
 
-    ORDER BY time_window_start DESC
+        ORDER BY time_window_start DESC
 
-    LIMIT 1;
-"""
+        LIMIT 1;
+    """
 
     with conn.cursor() as cur:
+
         cur.execute(
             query,
             (
@@ -315,6 +368,7 @@ def get_latest_congestion(
         row = cur.fetchone()
 
     if not row:
+
         return {
             "congestion_level": "UNKNOWN",
             "average_delay_percent": 0.0,
@@ -328,15 +382,15 @@ def get_latest_congestion(
         "congestion_level": row[0],
         "average_delay_percent": float(row[1] or 0),
         "average_travel_time_seconds": float(row[2] or 0),
-         "vehicle_count": row[3] or 0,
-    "time_window_start": row[4],
-    "time_window_end": row[5],
+        "vehicle_count": row[3] or 0,
+        "time_window_start": row[4],
+        "time_window_end": row[5],
     }
 
 
-# ---------------------------------------------------------
+# =========================================================
 # Store propagation prediction
-# ---------------------------------------------------------
+# =========================================================
 
 def store_propagation(
     conn,
@@ -351,6 +405,7 @@ def store_propagation(
     estimated_impact_minutes,
     metadata
 ):
+
     query = """
         INSERT INTO congestion_propagation (
             source_from_camera_id,
@@ -376,9 +431,8 @@ def store_propagation(
         );
     """
 
-    import json
-
     with conn.cursor() as cur:
+
         cur.execute(
             query,
             (
@@ -398,28 +452,55 @@ def store_propagation(
     conn.commit()
 
 
-# ---------------------------------------------------------
+# =========================================================
 # Process one source route
-# ---------------------------------------------------------
+# =========================================================
 
 def process_source_route(
     conn,
     source_from_camera,
     source_to_camera
 ):
+
+    # -----------------------------------------------------
+    # Get source congestion
+    # -----------------------------------------------------
+
     source_congestion = get_latest_congestion(
         conn,
         source_from_camera,
         source_to_camera
     )
 
-    # Only propagate from a congested source route.
+    # -----------------------------------------------------
+    # Only propagate from congested routes
+    # -----------------------------------------------------
+
     if source_congestion["congestion_level"] == "LOW":
+
         print(
-            f"[SKIP] {source_from_camera} -> "
+            f"[SKIP] "
+            f"{source_from_camera} -> "
             f"{source_to_camera}: LOW congestion"
         )
+
         return
+
+    # UNKNOWN also should not be propagated
+
+    if source_congestion["congestion_level"] == "UNKNOWN":
+
+        print(
+            f"[SKIP] "
+            f"{source_from_camera} -> "
+            f"{source_to_camera}: UNKNOWN congestion"
+        )
+
+        return
+
+    # -----------------------------------------------------
+    # Find downstream routes
+    # -----------------------------------------------------
 
     downstream_routes = find_downstream_routes(
         conn,
@@ -428,12 +509,19 @@ def process_source_route(
     )
 
     if not downstream_routes:
+
         print(
-            f"[SKIP] {source_from_camera} -> "
+            f"[SKIP] "
+            f"{source_from_camera} -> "
             f"{source_to_camera}: "
             f"no downstream trajectories"
         )
+
         return
+
+    # -----------------------------------------------------
+    # Process every downstream route
+    # -----------------------------------------------------
 
     for route in downstream_routes:
 
@@ -451,12 +539,20 @@ def process_source_route(
         if not flow_stats:
             continue
 
+        # -------------------------------------------------
+        # Get downstream congestion for same time window
+        # -------------------------------------------------
+
         downstream_congestion = get_latest_congestion(
             conn,
             downstream_from,
             downstream_to,
             source_congestion["time_window_start"]
         )
+
+        # -------------------------------------------------
+        # Calculate propagation score
+        # -------------------------------------------------
 
         score = calculate_propagation_score(
             source_congestion[
@@ -480,9 +576,9 @@ def process_source_route(
             ]
         )
 
-        # Estimate how long it takes congestion
-        # to propagate from the source route
-        # toward the downstream route.
+        # -------------------------------------------------
+        # Estimate impact time
+        # -------------------------------------------------
 
         estimated_impact_minutes = (
             source_congestion.get(
@@ -490,9 +586,17 @@ def process_source_route(
                 0
             ) / 60.0
         )
+
+        # -------------------------------------------------
+        # Metadata
+        # -------------------------------------------------
+
         metadata = {
+
             "source_vehicle_count":
-                flow_stats["total_source_vehicles"],
+                flow_stats[
+                    "total_source_vehicles"
+                ],
 
             "vehicles_with_continuation":
                 flow_stats[
@@ -513,13 +617,19 @@ def process_source_route(
                 ),
 
             "evidence_level":
-                score["evidence_level"],
+                score[
+                    "evidence_level"
+                ],
 
             "evidence_factor":
-                score["evidence_factor"],
+                score[
+                    "evidence_factor"
+                ],
 
             "raw_score":
-                score["raw_score"],
+                score[
+                    "raw_score"
+                ],
 
             "source_delay_percent":
                 source_congestion[
@@ -532,28 +642,49 @@ def process_source_route(
                 ],
         }
 
+        # -------------------------------------------------
+        # Store result
+        # -------------------------------------------------
+
         store_propagation(
             conn,
+
             source_from_camera,
             source_to_camera,
+
             downstream_from,
             downstream_to,
+
             flow_stats[
                 "downstream_probability_percent"
             ],
+
             source_congestion[
                 "congestion_level"
             ],
-            score["final_score"],
-            score["propagation_level"],
+
+            score[
+                "final_score"
+            ],
+
+            score[
+                "propagation_level"
+            ],
+
             estimated_impact_minutes,
+
             metadata
         )
+
+        # -------------------------------------------------
+        # Console output
+        # -------------------------------------------------
 
         print(
             f"[PROPAGATION] "
             f"{source_from_camera} -> "
-            f"{source_to_camera}  ==>  "
+            f"{source_to_camera}"
+            f"  ==>  "
             f"{downstream_from} -> "
             f"{downstream_to}"
         )
@@ -579,9 +710,9 @@ def process_source_route(
         )
 
 
-# ---------------------------------------------------------
+# =========================================================
 # Main
-# ---------------------------------------------------------
+# =========================================================
 
 def main():
 
@@ -593,20 +724,79 @@ def main():
 
     try:
 
-        # Start with our known propagation chain.
-        process_source_route(
-            conn,
-            "CAM01",
-            "CAM06"
+        # -------------------------------------------------
+        # Find ALL congested source routes
+        # -------------------------------------------------
+
+        query = """
+            SELECT DISTINCT
+                from_camera_id,
+                to_camera_id
+
+            FROM historical_congestion
+
+            WHERE congestion_level IN (
+                'MEDIUM',
+                'HIGH',
+                'SEVERE'
+            )
+
+            ORDER BY
+                from_camera_id,
+                to_camera_id;
+        """
+
+        with conn.cursor() as cur:
+
+            cur.execute(query)
+
+            source_routes = cur.fetchall()
+
+        print(
+            f"Found "
+            f"{len(source_routes)} "
+            f"congested source routes."
         )
 
+        # -------------------------------------------------
+        # Process every congested route
+        # -------------------------------------------------
+
+        for source_from, source_to in source_routes:
+
+            print(
+                f"\n[CHECK] "
+                f"{source_from} -> "
+                f"{source_to}"
+            )
+
+            process_source_route(
+                conn,
+                source_from,
+                source_to
+            )
+
+    except Exception as e:
+
+        print(
+            "\n[ERROR] "
+            f"{type(e).__name__}: {e}"
+        )
+
+        raise
+
     finally:
+
         conn.close()
 
     print("=" * 60)
     print("PROPAGATION PROCESS COMPLETED")
     print("=" * 60)
 
+
+# =========================================================
+# Program entry point
+# =========================================================
 
 if __name__ == "__main__":
     main()
