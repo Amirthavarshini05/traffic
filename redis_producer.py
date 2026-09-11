@@ -1,34 +1,34 @@
 import json
+import os
 import redis
 from datetime import datetime, timezone
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # --------------------------------------------------
 # Redis connection
 # --------------------------------------------------
 
 redis_client = redis.Redis(
-    host="localhost",
-    port=6379,
+    host=os.getenv("REDIS_HOST"),
+    port=int(os.getenv("REDIS_PORT", "6379")),
+    username=os.getenv("REDIS_USERNAME", "default"),
+    password=os.getenv("REDIS_PASSWORD"),
+    ssl=os.getenv("REDIS_SSL", "false").lower() == "true",
     decode_responses=True
 )
 
 STREAM_NAME = "anpr_events"
 
 
-# --------------------------------------------------
-# Publish normalized ANPR event
-# --------------------------------------------------
-
 def publish_anpr_event(payload):
-
     if isinstance(payload, str):
         payload = json.loads(payload)
 
     stream_id = redis_client.xadd(
         STREAM_NAME,
-        {
-            "data": json.dumps(payload)
-        }
+        {"data": json.dumps(payload)}
     )
 
     print("ANPR event published!")
@@ -38,18 +38,11 @@ def publish_anpr_event(payload):
     return stream_id
 
 
-# --------------------------------------------------
-# Test
-# --------------------------------------------------
-
 if __name__ == "__main__":
-
     sample_event = {
         "camera_id": "CAM01",
         "plate": "TN01AB1234",
-        "timestamp": datetime.now(
-            timezone.utc
-        ).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "confidence": 0.95,
         "latitude": 13.0213,
         "longitude": 80.2212,

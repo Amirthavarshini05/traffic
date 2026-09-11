@@ -1,15 +1,27 @@
 import json
+import os
 import redis
 
+from dotenv import load_dotenv
 from app.database import get_connection
+
+
+# =========================================================
+# Load environment variables
+# =========================================================
+
+load_dotenv()
 
 
 # =========================================================
 # Redis Configuration
 # =========================================================
 
-REDIS_HOST = "localhost"
-REDIS_PORT = 6379
+REDIS_HOST = os.getenv("REDIS_HOST")
+REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
+REDIS_USERNAME = os.getenv("REDIS_USERNAME", "default")
+REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
+REDIS_SSL = os.getenv("REDIS_SSL", "false").lower() == "true"
 
 TRAJECTORY_STREAM = "trajectory_events"
 CONSUMER_GROUP = "route_anomaly"
@@ -23,9 +35,11 @@ CONSUMER_NAME = "route_anomaly_01"
 redis_client = redis.Redis(
     host=REDIS_HOST,
     port=REDIS_PORT,
+    username=REDIS_USERNAME,
+    password=REDIS_PASSWORD,
+    ssl=REDIS_SSL,
     decode_responses=True,
     socket_timeout=None
-
 )
 
 
@@ -34,6 +48,7 @@ redis_client = redis.Redis(
 # =========================================================
 
 try:
+
     redis_client.xgroup_create(
         TRAJECTORY_STREAM,
         CONSUMER_GROUP,
@@ -41,12 +56,18 @@ try:
         mkstream=True
     )
 
-    print("Created Redis consumer group:", CONSUMER_GROUP)
+    print(
+        "Created Redis consumer group:",
+        CONSUMER_GROUP
+    )
 
 except redis.exceptions.ResponseError as e:
 
     if "BUSYGROUP" in str(e):
-        print("Redis consumer group already exists.")
+
+        print(
+            "Redis consumer group already exists."
+        )
 
     else:
         raise
@@ -126,22 +147,18 @@ def get_travel_time_bounds(
 
     stddev_seconds = float(stddev_seconds)
 
-
     percentage_lower = average_seconds * 0.80
     percentage_upper = average_seconds * 1.20
-
 
     statistical_lower = (
         average_seconds
         - 2.0 * stddev_seconds
     )
 
-
     statistical_upper = (
         average_seconds
         + 2.0 * stddev_seconds
     )
-
 
     # Use wider range
 
@@ -154,7 +171,6 @@ def get_travel_time_bounds(
         percentage_upper,
         statistical_upper
     )
-
 
     return max(lower, 0.0), upper
 
@@ -245,7 +261,6 @@ def process_trajectory(trajectory_id):
             trajectory_id
         )
 
-
         if trajectory is None:
 
             print(
@@ -254,7 +269,6 @@ def process_trajectory(trajectory_id):
             )
 
             return
-
 
         (
             trajectory_id,
@@ -269,13 +283,11 @@ def process_trajectory(trajectory_id):
             sample_count
         ) = trajectory
 
-
         print(
             f"\nChecking trajectory {trajectory_id}: "
             f"Vehicle {vehicle_id}, "
             f"{from_camera} -> {to_camera}"
         )
-
 
         # No historical baseline
 
@@ -288,18 +300,15 @@ def process_trajectory(trajectory_id):
 
             return
 
-
         lower, upper = get_travel_time_bounds(
             average_seconds,
             stddev_seconds,
             sample_count or 0
         )
 
-
         actual_seconds = float(
             actual_seconds
         )
-
 
         # Normal trajectory
 
@@ -314,14 +323,12 @@ def process_trajectory(trajectory_id):
 
             return
 
-
         # Determine direction
 
         if actual_seconds > upper:
             direction = "SLOWER"
         else:
             direction = "FASTER"
-
 
         deviation_percent = (
             (
@@ -331,17 +338,14 @@ def process_trajectory(trajectory_id):
             / float(average_seconds)
         ) * 100.0
 
-
         absolute_deviation = abs(
             deviation_percent
         )
-
 
         if absolute_deviation >= 50:
             severity = "HIGH"
         else:
             severity = "MEDIUM"
-
 
         message = (
             f"Vehicle {vehicle_id} had abnormal "
@@ -352,7 +356,6 @@ def process_trajectory(trajectory_id):
             f"{lower:.0f}-{upper:.0f}s, "
             f"{direction})"
         )
-
 
         metadata = {
 
@@ -393,7 +396,6 @@ def process_trajectory(trajectory_id):
                 "ABNORMAL_TRAVEL_TIME"
         }
 
-
         insert_alert(
             conn,
             alert_type="ABNORMAL_TRAVEL_TIME",
@@ -405,7 +407,6 @@ def process_trajectory(trajectory_id):
             metadata=metadata
         )
 
-
         print(
             f"[ABNORMAL TRAVEL TIME] "
             f"Vehicle {vehicle_id}: "
@@ -413,7 +414,6 @@ def process_trajectory(trajectory_id):
             f"actual={actual_seconds:.0f}s "
             f"expected={lower:.0f}-{upper:.0f}s"
         )
-
 
     finally:
 
@@ -440,6 +440,10 @@ def main():
         CONSUMER_GROUP
     )
 
+    print(
+        "Consumer:",
+        CONSUMER_NAME
+    )
 
     while True:
 
@@ -453,10 +457,8 @@ def main():
             block=5000
         )
 
-
         if not messages:
             continue
-
 
         for stream_name, entries in messages:
 
@@ -468,11 +470,9 @@ def main():
                         fields["data"]
                     )
 
-
                     trajectory_id = int(
                         data["trajectory_id"]
                     )
-
 
                     print(
                         "\nRedis event received:"
@@ -480,11 +480,9 @@ def main():
 
                     print(data)
 
-
                     process_trajectory(
                         trajectory_id
                     )
-
 
                     # ACK only after
                     # successful processing
@@ -495,12 +493,10 @@ def main():
                         redis_message_id
                     )
 
-
                     print(
                         "ACK:",
                         redis_message_id
                     )
-
 
                 except Exception as e:
 
@@ -510,6 +506,10 @@ def main():
                         e
                     )
 
+
+# =========================================================
+# Start
+# =========================================================
 
 if __name__ == "__main__":
     main()

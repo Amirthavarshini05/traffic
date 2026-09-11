@@ -1,8 +1,17 @@
 import json
+import os
 import redis
 import psycopg2
 
+from dotenv import load_dotenv
 from event_ingestion import ingest_anpr_event
+
+
+# --------------------------------------------------
+# Load environment variables
+# --------------------------------------------------
+
+load_dotenv()
 
 
 # --------------------------------------------------
@@ -10,8 +19,11 @@ from event_ingestion import ingest_anpr_event
 # --------------------------------------------------
 
 redis_client = redis.Redis(
-    host="localhost",
-    port=6379,
+    host=os.getenv("REDIS_HOST"),
+    port=int(os.getenv("REDIS_PORT", "6379")),
+    username=os.getenv("REDIS_USERNAME", "default"),
+    password=os.getenv("REDIS_PASSWORD"),
+    ssl=os.getenv("REDIS_SSL", "false").lower() == "true",
     decode_responses=True,
     socket_timeout=None
 )
@@ -26,11 +38,12 @@ CONSUMER_NAME = "backend_01"
 # --------------------------------------------------
 
 db_conn = psycopg2.connect(
-    host="localhost",
-    port=5432,
-    database="city_traffic",
-    user="postgres",
-    password="varsha"
+    host=os.getenv("DB_HOST"),
+    port=os.getenv("DB_PORT", "5432"),
+    database=os.getenv("DB_NAME", "postgres"),
+    user=os.getenv("DB_USER"),
+    password=os.getenv("DB_PASSWORD"),
+    sslmode=os.getenv("DB_SSLMODE", "require")
 )
 
 
@@ -79,10 +92,12 @@ def consume_events():
                     )
 
                     print("Normalized ANPR payload:")
-                    print(json.dumps(
-                        payload,
-                        indent=2
-                    ))
+                    print(
+                        json.dumps(
+                            payload,
+                            indent=2
+                        )
+                    )
 
                     # ----------------------------------
                     # Insert into PostgreSQL
