@@ -1,6 +1,7 @@
+import os
 import osmnx as ox
 
-GRAPH_PATH = r"D:\traffice_new\check\chennai_drive.graphml"
+GRAPH_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "chennai_drive.graphml")
 
 CAM04_LAT = 12.975900
 CAM04_LON = 80.251000

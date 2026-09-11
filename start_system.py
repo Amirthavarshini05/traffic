@@ -1,8 +1,9 @@
+import os
 import subprocess
 import sys
 import time
 
-PROJECT_DIR = r"D:\traffice_new"
+PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 PROCESSES = [
     ("FastAPI", [sys.executable, "-m", "uvicorn", "app.main:app"]),

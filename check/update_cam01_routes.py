@@ -1,16 +1,17 @@
+import os
 import json
 import psycopg2
 from psycopg2.extras import Json
 
 DB_CONFIG = {
-    "host": "localhost",
-    "database": "city_traffic",
-    "user": "postgres",
-    "password": "varsha",
-    "port": 5432
+    "host": os.getenv("PGHOST", "localhost"),
+    "database": os.getenv("PGDATABASE", "city_traffic"),
+    "user": os.getenv("PGUSER", "postgres"),
+    "password": os.getenv("PGPASSWORD", "varsha"),
+    "port": int(os.getenv("PGPORT", "5432"))
 }
 
-GEOJSON_FILE = r"D:\traffice_new\check\cam01_real_routes.geojson"
+GEOJSON_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cam01_real_routes.geojson")
 
 conn = psycopg2.connect(**DB_CONFIG)
 cur = conn.cursor()
