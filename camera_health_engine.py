@@ -1,18 +1,6 @@
 import psycopg2
 import json
-
-
-# =========================================================
-# Database Configuration
-# =========================================================
-
-DB_CONFIG = {
-    "host": "localhost",
-    "database": "city_traffic",
-    "user": "postgres",
-    "password": "varsha",
-    "port": 5432
-}
+from app.database import get_connection
 
 
 # =========================================================
@@ -21,14 +9,6 @@ DB_CONFIG = {
 
 HEALTHY_LIMIT_MINUTES = 5
 WARNING_LIMIT_MINUTES = 15
-
-
-# =========================================================
-# Database Connection
-# =========================================================
-
-def get_connection():
-    return psycopg2.connect(**DB_CONFIG)
 
 
 # =========================================================

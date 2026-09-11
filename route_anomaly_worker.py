@@ -1,3 +1,4 @@
+import os
 import json
 import redis
 
@@ -8,8 +9,8 @@ from app.database import get_connection
 # Redis Configuration
 # =========================================================
 
-REDIS_HOST = "localhost"
-REDIS_PORT = 6379
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 
 TRAJECTORY_STREAM = "trajectory_events"
 CONSUMER_GROUP = "route_anomaly"

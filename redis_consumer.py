@@ -1,8 +1,10 @@
+import os
 import json
 import redis
 import psycopg2
 
 from event_ingestion import ingest_anpr_event
+from app.database import get_connection
 
 
 # --------------------------------------------------
@@ -10,8 +12,8 @@ from event_ingestion import ingest_anpr_event
 # --------------------------------------------------
 
 redis_client = redis.Redis(
-    host="localhost",
-    port=6379,
+    host=os.getenv("REDIS_HOST", "localhost"),
+    port=int(os.getenv("REDIS_PORT", "6379")),
     decode_responses=True,
     socket_timeout=None
 )
@@ -25,13 +27,7 @@ CONSUMER_NAME = "backend_01"
 # PostgreSQL
 # --------------------------------------------------
 
-db_conn = psycopg2.connect(
-    host="localhost",
-    port=5432,
-    database="city_traffic",
-    user="postgres",
-    password="varsha"
-)
+db_conn = get_connection()
 
 
 # --------------------------------------------------

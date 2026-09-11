@@ -1,21 +1,17 @@
+import os
 import json
 import time
 
 import psycopg2
 import redis
+from app.database import get_connection
 
 
 # ============================================================
 # PostgreSQL connection
 # ============================================================
 
-pg_conn = psycopg2.connect(
-    host="localhost",
-    database="city_traffic",
-    user="postgres",
-    password="varsha",
-    port=5432
-)
+pg_conn = get_connection()
 
 pg_conn.set_isolation_level(
     psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT
@@ -29,8 +25,8 @@ pg_cursor = pg_conn.cursor()
 # ============================================================
 
 redis_client = redis.Redis(
-    host="localhost",
-    port=6379,
+    host=os.getenv("REDIS_HOST", "localhost"),
+    port=int(os.getenv("REDIS_PORT", "6379")),
     decode_responses=True
 )
 
