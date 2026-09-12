@@ -4,19 +4,14 @@ import redis
 import psycopg2
 
 from event_ingestion import ingest_anpr_event
-from app.database import get_connection
+from app.database import get_connection, get_redis_client
 
 
 # --------------------------------------------------
 # Redis
 # --------------------------------------------------
 
-redis_client = redis.Redis(
-    host=os.getenv("REDIS_HOST", "localhost"),
-    port=int(os.getenv("REDIS_PORT", "6379")),
-    decode_responses=True,
-    socket_timeout=None
-)
+redis_client = get_redis_client(decode_responses=True, socket_timeout=None)
 
 STREAM_NAME = "anpr_events"
 GROUP_NAME = "traffic_backend"
@@ -35,6 +30,19 @@ db_conn = get_connection()
 # --------------------------------------------------
 
 def consume_events():
+    try:
+        redis_client.xgroup_create(
+            STREAM_NAME,
+            GROUP_NAME,
+            id="0",
+            mkstream=True
+        )
+        print("Created Redis consumer group:", GROUP_NAME)
+    except redis.exceptions.ResponseError as e:
+        if "BUSYGROUP" in str(e):
+            print("Redis consumer group already exists.")
+        else:
+            raise
 
     print(f"Listening to Redis stream: {STREAM_NAME}")
     print(f"Consumer group: {GROUP_NAME}")

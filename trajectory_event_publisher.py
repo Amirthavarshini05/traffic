@@ -4,7 +4,7 @@ import time
 
 import psycopg2
 import redis
-from app.database import get_connection
+from app.database import get_connection, get_redis_client
 
 
 # ============================================================
@@ -24,11 +24,7 @@ pg_cursor = pg_conn.cursor()
 # Redis connection
 # ============================================================
 
-redis_client = redis.Redis(
-    host=os.getenv("REDIS_HOST", "localhost"),
-    port=int(os.getenv("REDIS_PORT", "6379")),
-    decode_responses=True
-)
+redis_client = get_redis_client(decode_responses=True)
 
 TRAJECTORY_STREAM = "trajectory_events"
 

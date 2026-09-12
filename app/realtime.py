@@ -1,16 +1,14 @@
 import asyncio
 import json
-
 import redis
+
 from fastapi import WebSocket
+from app.database import get_redis_client
 
 
 # =========================================================
 # Redis Configuration
 # =========================================================
-
-REDIS_HOST = "localhost"
-REDIS_PORT = 6379
 
 TRAJECTORY_STREAM = "trajectory_events"
 CONSUMER_GROUP = "dashboard_realtime"
@@ -21,13 +19,7 @@ CONSUMER_NAME = "dashboard_realtime_01"
 # Redis Connection
 # =========================================================
 
-redis_client = redis.Redis(
-    host=REDIS_HOST,
-    port=REDIS_PORT,
-    decode_responses=True,
-        socket_timeout=None
-
-)
+redis_client = get_redis_client(decode_responses=True, socket_timeout=None)
 
 
 # =========================================================

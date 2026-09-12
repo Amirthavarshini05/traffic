@@ -1,18 +1,14 @@
 import os
 import json
-import redis
 from datetime import datetime, timezone
+from app.database import get_redis_client
 
 
 # --------------------------------------------------
 # Redis connection
 # --------------------------------------------------
 
-redis_client = redis.Redis(
-    host=os.getenv("REDIS_HOST", "localhost"),
-    port=int(os.getenv("REDIS_PORT", "6379")),
-    decode_responses=True
-)
+redis_client = get_redis_client(decode_responses=True)
 
 STREAM_NAME = "anpr_events"
 
