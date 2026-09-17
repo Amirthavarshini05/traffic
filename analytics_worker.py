@@ -150,6 +150,49 @@ def run_analytics_cycle():
             f"Congestion propagation analysis failed: {e}"
         )
 
+    # --------------------------------------------------
+    # 4. Publish CONGESTION_UPDATED to Redis
+    # --------------------------------------------------
+    try:
+        from app.database import get_redis_client, get_connection
+        import json
+        redis_client = get_redis_client(decode_responses=True)
+        conn = get_connection()
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT from_camera_id, to_camera_id, time_window_start, 
+                       vehicle_count, average_travel_time_seconds, 
+                       average_delay_seconds, travel_time_index, congestion_level
+                FROM historical_congestion
+                ORDER BY time_window_start DESC
+                LIMIT 20;
+            """)
+            rows = cur.fetchall()
+            congestion_data = [
+                {
+                    "from_camera_id": r[0],
+                    "to_camera_id": r[1],
+                    "time_window_start": r[2].isoformat() if r[2] else None,
+                    "vehicle_count": r[3],
+                    "average_travel_time_seconds": float(r[4]) if r[4] else None,
+                    "average_delay_seconds": float(r[5]) if r[5] else None,
+                    "travel_time_index": float(r[6]) if r[6] else None,
+                    "congestion_level": r[7]
+                }
+                for r in rows
+            ]
+        conn.close()
+
+        if congestion_data:
+            redis_client.xadd(
+                "congestion_events",
+                {"data": json.dumps({"event_type": "CONGESTION_UPDATED", "congestion": congestion_data}, default=str)}
+            )
+            print("  -> Published CONGESTION_UPDATED event to Redis stream congestion_events")
+
+    except Exception as ce:
+        print(f"Failed to publish congestion to Redis: {ce}")
+
 
 if __name__ == "__main__":
 

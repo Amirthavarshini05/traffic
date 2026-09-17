@@ -68,7 +68,14 @@ def ingest_anpr_event(conn, payload):
     event_id = cur.fetchone()[0]
     conn.commit()
     cur.close()
-    return event_id
+    return {
+        "event_id": event_id,
+        "vehicle_id": vehicle_id,
+        "camera_id": camera_id,
+        "plate": plate,
+        "observed_at": timestamp_str,
+        "confidence": confidence
+    }
 
 if __name__ == "__main__":
     # Test JSON event ingestion sample

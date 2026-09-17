@@ -1,26 +1,7 @@
 import psycopg2
 from datetime import datetime, timedelta, timezone
 import json
-
-
-DB_CONFIG = {
-    "host": "localhost",
-    "database": "city_traffic",
-    "user": "postgres",
-    "password": "varsha",
-    "port": 5432
-}
-
-
-WINDOW_MINUTES = 15
-
-MIN_VEHICLES = 3
-MIN_CURRENT_SHARE = 70.0
-MAX_HISTORICAL_SHARE = 30.0
-
-
-def get_connection():
-    return psycopg2.connect(**DB_CONFIG)
+from app.database import get_connection
 
 
 def get_movement_counts(conn, start_time, end_time):

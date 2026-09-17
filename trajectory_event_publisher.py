@@ -27,17 +27,19 @@ pg_cursor = pg_conn.cursor()
 redis_client = get_redis_client(decode_responses=True)
 
 TRAJECTORY_STREAM = "trajectory_events"
+ALERT_STREAM = "alert_events"
 
 
 # ============================================================
-# Listen for new trajectories
+# Listen for PostgreSQL notifications
 # ============================================================
 
 pg_cursor.execute("LISTEN trajectory_created;")
+pg_cursor.execute("LISTEN alert_created;")
 
-print("Trajectory event publisher started.")
-print("Listening for PostgreSQL trajectory notifications...")
-print("Publishing to Redis stream:", TRAJECTORY_STREAM)
+print("Realtime event publisher started.")
+print("Listening for PostgreSQL notifications (trajectory_created, alert_created)...")
+print(f"Publishing to Redis streams: {TRAJECTORY_STREAM}, {ALERT_STREAM}")
 
 
 # ============================================================
@@ -53,39 +55,36 @@ while True:
 
         notification = pg_conn.notifies.pop(0)
 
-        print("\nTrajectory notification received:")
+        channel = notification.channel
+        print(f"\n[{channel}] notification received:")
         print(notification.payload)
 
         try:
+            payload_data = json.loads(notification.payload)
 
-            # Convert PostgreSQL JSON payload to Python dictionary
-            trajectory_data = json.loads(
-                notification.payload
-            )
+            if channel == "trajectory_created":
+                payload_data["event_type"] = "TRAJECTORY_CREATED"
+                target_stream = TRAJECTORY_STREAM
 
-            # Add event type
-            trajectory_data["event_type"] = "TRAJECTORY_CREATED"
+            elif channel == "alert_created":
+                payload_data["event_type"] = "ALERT_CREATED"
+                target_stream = ALERT_STREAM
+
+            else:
+                target_stream = TRAJECTORY_STREAM
 
             # Publish to Redis Stream
             redis_stream_id = redis_client.xadd(
-                TRAJECTORY_STREAM,
+                target_stream,
                 {
-                    "data": json.dumps(
-                        trajectory_data
-                    )
+                    "data": json.dumps(payload_data, default=str)
                 }
             )
 
-            print("Published to Redis trajectory_events")
-            print("Redis Stream ID:", redis_stream_id)
-            print("Data:", trajectory_data)
+            print(f"Published to Redis {target_stream} (ID: {redis_stream_id})")
 
         except Exception as e:
-
-            print(
-                "Failed to publish trajectory event:",
-                e
-            )
+            print(f"Failed to publish event from {channel}:", e)
 
     # Small delay so CPU isn't unnecessarily busy
     time.sleep(0.1)

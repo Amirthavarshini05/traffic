@@ -31,6 +31,11 @@ def run_health_check():
         print(f"Camera health check: {reference_time}")
         print("=" * 70)
 
+        camera_statuses = []
+        healthy_count = 0
+        warning_count = 0
+        offline_count = 0
+
         for camera in cameras:
 
             camera_id = camera[0]
@@ -43,6 +48,21 @@ def run_health_check():
                     reference_time
                 )
             )
+
+            if health_status == "HEALTHY":
+                healthy_count += 1
+            elif health_status == "WARNING":
+                warning_count += 1
+            else:
+                offline_count += 1
+
+            camera_statuses.append({
+                "camera_id": camera_id,
+                "camera_name": camera_name,
+                "health_status": health_status,
+                "minutes_since_last_event": round(minutes_since_event, 2) if minutes_since_event is not None else None,
+                "last_event_at": last_event_at.isoformat() if last_event_at else None
+            })
 
             print(
                 f"{camera_id} | "
@@ -61,6 +81,30 @@ def run_health_check():
 
             if alert_id:
                 print(f"  -> CAMERA_HEALTH alert created: {alert_id}")
+
+        # Publish CAMERA_HEALTH_UPDATED to Redis for WebSocket broadcast
+        try:
+            from app.database import get_redis_client
+            import json
+            redis_client = get_redis_client(decode_responses=True)
+            health_payload = {
+                "event_type": "CAMERA_HEALTH_UPDATED",
+                "cameras": camera_statuses,
+                "counts": {
+                    "healthy": healthy_count,
+                    "warning": warning_count,
+                    "offline": offline_count,
+                    "total": len(camera_statuses)
+                },
+                "reference_time": reference_time.isoformat() if reference_time else None
+            }
+            redis_client.xadd(
+                "camera_health_events",
+                {"data": json.dumps(health_payload, default=str)}
+            )
+            print("  -> Published CAMERA_HEALTH_UPDATED event to Redis stream camera_health_events")
+        except Exception as re:
+            print(f"Failed to publish camera health to Redis: {re}")
 
     except Exception as e:
         print(f"Camera health worker error: {e}")

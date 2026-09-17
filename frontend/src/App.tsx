@@ -149,7 +149,7 @@ function Metric({icon,label,value,trend,color="blue"}:{icon:string;label:string;
 function DataChart({data,color,unit}:{data:{label:string;value:number}[];color:string;unit:string}){if(!data.length)return <div className="chart-empty">No data available</div>;const max=Math.max(...data.map(item=>item.value),1);const points=data.map((item,index)=>`${index*(240/Math.max(data.length-1,1))},${92-(item.value/max)*72}`).join(" ");return <div style={{position:"absolute",left:18,right:18,bottom:18,height:120}}><svg viewBox="0 0 240 100" preserveAspectRatio="none" style={{width:"100%",height:96,overflow:"visible"}}><polyline points={points} fill="none" stroke={color} strokeWidth="3" vectorEffect="non-scaling-stroke"/>{data.map((item,index)=><circle key={item.label} cx={index*(240/Math.max(data.length-1,1))} cy={92-(item.value/max)*72} r="3" fill={color}/>)}</svg><div style={{display:"flex",justifyContent:"space-between",gap:6,overflow:"hidden",color:"#65748b",fontFamily:"DM Mono",fontSize:9,whiteSpace:"nowrap"}}>{data.map(item=><span key={item.label}>{item.label}</span>)}</div><small style={{color:"#94a3b8",fontSize:9}}>{unit}</small></div>}
 const Kpis=({total,healthy,offline}:{total:number;healthy:number;offline:number})=><section className="kpis"><Metric icon="◉" label="Total Cameras" value={String(total)} color="blue"/><Metric icon="✓" label="Healthy Cameras" value={String(healthy)} color="green"/><Metric icon="!" label="Offline Cameras" value={String(offline)} color="orange"/></section>;
 function App(){
- const mapContainer=useRef<HTMLDivElement|null>(null),mapRef=useRef<Map|null>(null); const [cameras,setCameras]=useState<Camera[]>([]),[cameraHealth,setCameraHealth]=useState<CameraHealth[]>([]),[routes,setRoutes]=useState<CameraRoute[]>([]),[realtimeTrajectory,setRealtimeTrajectory]=useState<RealtimeTrajectory|null>(null),[vehicleTrajectories,setVehicleTrajectories]=useState<Record<number,VehicleTrajectory[]>>({}),[vehicleLoading,setVehicleLoading]=useState(false),[alerts,setAlerts]=useState<Alert[]>([]),[alertsLoading,setAlertsLoading]=useState(true),[alertsError,setAlertsError]=useState<string|null>(null),[analyticsSummary,setAnalyticsSummary]=useState<AnalyticsSummary|null>(null),[analyticsLoading,setAnalyticsLoading]=useState(true),[analyticsError,setAnalyticsError]=useState<string|null>(null),[congestion,setCongestion]=useState<HistoricalCongestion[]>([]),[zones,setZones]=useState<ZoneTraffic[]>([]),[routeTraffic,setRouteTraffic]=useState<RouteTraffic[]>([]),[odMatrix,setOdMatrix]=useState<ODMatrixEntry[]>([]),[chartsLoading,setChartsLoading]=useState(true),[chartsError,setChartsError]=useState<string|null>(null); const [tab,setTab]=useState<Tab>("Live Map"),[search,setSearch]=useState(""),[now,setNow]=useState(new Date()),[mapReady,setMapReady]=useState(false);
+ const mapContainer=useRef<HTMLDivElement|null>(null),mapRef=useRef<Map|null>(null),markersRef=useRef<Marker[]>([]); const [cameras,setCameras]=useState<Camera[]>([]),[cameraHealth,setCameraHealth]=useState<CameraHealth[]>([]),[routes,setRoutes]=useState<CameraRoute[]>([]),[realtimeTrajectory,setRealtimeTrajectory]=useState<RealtimeTrajectory|null>(null),[latestLiveAlert,setLatestLiveAlert]=useState<Alert|null>(null),[vehicleTrajectories,setVehicleTrajectories]=useState<Record<number,VehicleTrajectory[]>>({}),[vehicleLoading,setVehicleLoading]=useState(false),[alerts,setAlerts]=useState<Alert[]>([]),[alertsLoading,setAlertsLoading]=useState(true),[alertsError,setAlertsError]=useState<string|null>(null),[analyticsSummary,setAnalyticsSummary]=useState<AnalyticsSummary|null>(null),[analyticsLoading,setAnalyticsLoading]=useState(true),[analyticsError,setAnalyticsError]=useState<string|null>(null),[congestion,setCongestion]=useState<HistoricalCongestion[]>([]),[zones,setZones]=useState<ZoneTraffic[]>([]),[routeTraffic,setRouteTraffic]=useState<RouteTraffic[]>([]),[odMatrix,setOdMatrix]=useState<ODMatrixEntry[]>([]),[chartsLoading,setChartsLoading]=useState(true),[chartsError,setChartsError]=useState<string|null>(null); const [tab,setTab]=useState<Tab>("Live Map"),[search,setSearch]=useState(""),[now,setNow]=useState(new Date()),[mapReady,setMapReady]=useState(false);
  useEffect(()=>{const id=setInterval(()=>setNow(new Date()),1000);return()=>clearInterval(id)},[]);
  useEffect(()=>{fetch("http://127.0.0.1:8000/cameras").then(r=>{if(!r.ok)throw Error("Failed to fetch cameras");return r.json()}).then((d:CamerasResponse)=>setCameras(d.cameras)).catch(e=>console.error("Camera API error:",e))},[]);
  useEffect(()=>{fetch("http://127.0.0.1:8000/cameras/health").then(r=>{if(!r.ok)throw Error("Failed to fetch camera health");return r.json()}).then((d:CameraHealthResponse)=>setCameraHealth(d.cameras)).catch(e=>console.error("Camera health API error:",e))},[]);
@@ -158,14 +158,105 @@ function App(){
  useEffect(()=>{const vehicleIds=Array.from(new Set(alerts.map(a=>a.vehicle_id).filter((id):id is number=>id!==null)));if(!vehicleIds.length){setVehicleTrajectories({});setVehicleLoading(false);return}setVehicleLoading(true);Promise.all(vehicleIds.map(async vehicleId=>{try{const r=await fetch(`http://127.0.0.1:8000/vehicles/${vehicleId}/trajectory`);if(!r.ok)throw Error(`Vehicle ${vehicleId} trajectory unavailable`);const d:VehicleTrajectoryResponse=await r.json();return [vehicleId,d.trajectory] as const}catch(e){console.error(`Vehicle ${vehicleId} trajectory API error:`,e);return [vehicleId,[]] as const}})).then(entries=>setVehicleTrajectories(Object.fromEntries(entries))).finally(()=>setVehicleLoading(false))},[alerts]);
  useEffect(()=>{fetch("http://127.0.0.1:8000/analytics/summary").then(r=>{if(!r.ok)throw Error("Failed to fetch analytics summary");return r.json()}).then((d:AnalyticsSummary)=>setAnalyticsSummary(d)).catch(e=>{console.error("Analytics summary API error:",e);setAnalyticsError("Unable to load analytics summary.")}).finally(()=>setAnalyticsLoading(false))},[]);
  useEffect(()=>{const end=new Date();const start=new Date(end);start.setDate(start.getDate()-7);const congestionUrl=`http://127.0.0.1:8000/analytics/congestion/history?${new URLSearchParams({start_time:start.toISOString(),end_time:end.toISOString()})}`;Promise.all([fetch(congestionUrl).then(r=>{if(!r.ok)throw Error("Failed to fetch congestion history");return r.json() as Promise<HistoricalCongestionResponse>}),fetch("http://127.0.0.1:8000/analytics/traffic/zones").then(r=>{if(!r.ok)throw Error("Failed to fetch zone traffic");return r.json() as Promise<ZoneTrafficResponse>}),fetch("http://127.0.0.1:8000/analytics/traffic/routes").then(r=>{if(!r.ok)throw Error("Failed to fetch route traffic");return r.json() as Promise<RouteTrafficResponse>}),fetch("http://127.0.0.1:8000/analytics/od-matrix").then(r=>{if(!r.ok)throw Error("Failed to fetch OD matrix");return r.json() as Promise<ODMatrixResponse>})]).then(([history,zoneData,routeData,odData])=>{setCongestion(history.congestion);setZones(zoneData.zones);setRouteTraffic(routeData.routes);setOdMatrix(odData.matrix)}).catch(e=>{console.error("Analytics chart API error:",e);setChartsError("Unable to load chart data.")}).finally(()=>setChartsLoading(false))},[]);
- useEffect(()=>{const ws=new WebSocket("ws://127.0.0.1:8000/ws/traffic");ws.onopen=()=>console.log("Realtime WebSocket connected");ws.onmessage=e=>{const d:RealtimeTrajectory=JSON.parse(e.data);console.log("Realtime traffic event:",d);setRealtimeTrajectory(d)};ws.onerror=e=>console.error("WebSocket error:",e);ws.onclose=()=>console.log("Realtime WebSocket disconnected");return()=>ws.close()},[]);
+ useEffect(()=>{
+  const ws=new WebSocket("ws://127.0.0.1:8000/ws/traffic");
+  ws.onopen=()=>console.log("Realtime WebSocket connected");
+  ws.onmessage=e=>{
+   try{
+    const d=JSON.parse(e.data);
+    const eventType=d.event_type||(d.from_camera_id&&d.to_camera_id?"TRAJECTORY_CREATED":"UNKNOWN");
+    if(eventType==="TRAJECTORY_CREATED"){
+     setRealtimeTrajectory(d as RealtimeTrajectory);
+    }else if(eventType==="ALERT_CREATED"){
+     const newAlert:Alert={
+      alert_id:d.alert_id,
+      alert_type:d.alert_type||"INCIDENT",
+      severity:d.severity||"MEDIUM",
+      message:d.message||d.description||"New traffic incident detected",
+      vehicle_id:d.vehicle_id!==undefined?d.vehicle_id:null,
+      road_id:d.road_id?String(d.road_id):null,
+      camera_id:d.camera_id?String(d.camera_id):null,
+      camera_name:d.camera_name||null,
+      zone_id:d.zone_id!==undefined?d.zone_id:null,
+      zone_name:d.zone_name||null,
+      authority_name:d.authority_name||null,
+      detected_at:d.detected_at||new Date().toISOString(),
+      resolved_at:d.resolved_at||null,
+      status:d.status||"ACTIVE",
+      metadata:d.metadata||null,
+      created_at:d.created_at||new Date().toISOString()
+     };
+     setAlerts(prev=>[newAlert,...prev.filter(a=>a.alert_id!==newAlert.alert_id)]);
+     setLatestLiveAlert(newAlert);
+     if(newAlert.vehicle_id){
+      fetch(`http://127.0.0.1:8000/vehicles/${newAlert.vehicle_id}/trajectory`)
+       .then(r=>r.ok?r.json():null)
+       .then(vt=>{if(vt&&vt.trajectory)setVehicleTrajectories(prev=>({...prev,[newAlert.vehicle_id!]:vt.trajectory}))})
+       .catch(err=>console.error("Error fetching vehicle trajectory for new alert:",err));
+     }
+    }else if(eventType==="CAMERA_HEALTH_UPDATED"){
+     if(Array.isArray(d.cameras)){
+      setCameraHealth(prev=>{
+       const record:Record<string,CameraHealth>={};
+       for(const c of prev) record[c.camera_id]=c;
+       for(const ch of d.cameras){
+        const existing=record[ch.camera_id];
+        record[ch.camera_id]={
+         camera_id:ch.camera_id,
+         camera_name:ch.camera_name||existing?.camera_name||ch.camera_id,
+         configured_status:existing?.configured_status||"ACTIVE",
+         last_event_at:ch.last_event_at||existing?.last_event_at||null,
+         health_status:ch.health_status||"OFFLINE",
+         minutes_since_last_event:ch.minutes_since_last_event??existing?.minutes_since_last_event??null
+        };
+       }
+       return Object.values(record);
+      });
+     }
+    }else if(eventType==="CONGESTION_UPDATED"){
+     if(Array.isArray(d.congestion)){
+      setCongestion(prev=>{
+       const record:Record<string,HistoricalCongestion>={};
+       for(const item of prev){
+        record[`${item.from_camera_id}-${item.to_camera_id}-${item.time_window_start}`]=item;
+       }
+       for(const item of d.congestion){
+        record[`${item.from_camera_id}-${item.to_camera_id}-${item.time_window_start}`]=item;
+       }
+       return Object.values(record);
+      });
+     }
+    }
+   }catch(err){
+    console.error("Failed to parse realtime WebSocket message:",err);
+   }
+  };
+  ws.onerror=e=>console.error("WebSocket error:",e);
+  ws.onclose=()=>console.log("Realtime WebSocket disconnected");
+  return()=>ws.close();
+ },[]);
  useEffect(()=>{if(!mapContainer.current)return;setMapReady(false);const map=new Map({container:mapContainer.current,style:{version:8,sources:{osm:{type:"raster",tiles:["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],tileSize:256,attribution:"© OpenStreetMap contributors"}},layers:[{id:"osm",type:"raster",source:"osm",paint:{"raster-brightness-max":.55,"raster-saturation":-.35,"raster-contrast":.08}}]},center:[80.23,13.04],zoom:11});map.on("load",()=>{setMapReady(true);map.resize()});mapRef.current=map;return()=>{setMapReady(false);map.remove();mapRef.current=null}},[tab]);
- useEffect(()=>{const map=mapRef.current;if(!mapReady||!map||!cameras.length||!cameraHealth.length)return;cameras.forEach(c=>{const h=cameraHealth.find(x=>x.camera_id===c.camera_id)?.health_status??"OFFLINE";const color=h==="WARNING"?"#f59e0b":h==="OFFLINE"?"#ef4444":"#10b981";const el=document.createElement("div");el.className="camera-marker";el.style.setProperty("--marker",color);new Marker({element:el}).setLngLat([c.longitude,c.latitude]).setPopup(new Popup({offset:16}).setHTML(`<strong>${c.camera_id}</strong><br/>${c.camera_name}<br/>Health: ${h}<br/>Configured Status: ${c.status}`)).addTo(map)})},[cameras,cameraHealth,tab,mapReady]);
+ useEffect(()=>{
+  const map=mapRef.current;
+  if(!mapReady||!map||!cameras.length||!cameraHealth.length)return;
+  markersRef.current.forEach(m=>m.remove());
+  markersRef.current=[];
+  cameras.forEach(c=>{
+   const h=cameraHealth.find(x=>x.camera_id===c.camera_id)?.health_status??"OFFLINE";
+   const color=h==="WARNING"?"#f59e0b":h==="OFFLINE"?"#ef4444":"#10b981";
+   const el=document.createElement("div");
+   el.className="camera-marker";
+   el.style.setProperty("--marker",color);
+   const marker=new Marker({element:el}).setLngLat([c.longitude,c.latitude]).setPopup(new Popup({offset:16}).setHTML(`<strong>${c.camera_id}</strong><br/>${c.camera_name}<br/>Health: ${h}<br/>Configured Status: ${c.status}`)).addTo(map);
+   markersRef.current.push(marker);
+  });
+  return()=>{markersRef.current.forEach(m=>m.remove());markersRef.current=[]};
+ },[cameras,cameraHealth,tab,mapReady]);
  useEffect(()=>{const map=mapRef.current;if(!mapReady||!map||!routes.length)return;if(map.getSource("camera-routes"))return;map.addSource("camera-routes",{type:"geojson",data:{type:"FeatureCollection",features:routes.map(r=>({type:"Feature" as const,properties:{route_id:r.route_id,starting_node:r.starting_node,ending_node:r.ending_node,total_distance_m:r.total_distance_m},geometry:r.geometry}))}});map.addLayer({id:"camera-routes-line",type:"line",source:"camera-routes",paint:{"line-color":"#3b82f6","line-width":4,"line-opacity":.8,"line-blur":1}})},[routes,tab,mapReady]);useEffect(()=>{if(tab==="Live Map")setTimeout(()=>mapRef.current?.resize(),250)},[tab]);
  const counts=useMemo(()=>({healthy:cameraHealth.filter(c=>c.health_status==="HEALTHY").length,warning:cameraHealth.filter(c=>c.health_status==="WARNING").length,offline:cameraHealth.filter(c=>c.health_status==="OFFLINE").length}),[cameraHealth]); const time=now.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",second:"2-digit"});
  const activeAlertCount=alerts.filter(alert=>alert.status.toUpperCase()==="ACTIVE").length;
  return <div className="shell"><aside><div className="brand"><b>N</b><div><strong>NEURAL<span>GRID</span></strong><small>URBAN INTELLIGENCE</small></div></div><label>OPERATIONS</label><nav>{nav.map(([name,icon])=><button className={tab===name?"active":""} onClick={()=>setTab(name)} key={name}><i>{icon}</i>{name}{name==="Alerts"&&activeAlertCount>0&&<em>{activeAlertCount}</em>}</button>)}</nav><div className="health"><label>SYSTEM HEALTH</label><strong><i/>System operational</strong><span>• API online</span><span>• Realtime connected</span><span>• Database online</span></div></aside><main><header><div><p>SMART CITY / COMMAND CENTER</p><h1>{tab}</h1></div><div className="top"><div className="search">⌕<input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search plate, camera or route..."/></div><div className="clock">{now.toLocaleDateString([], {month:"short",day:"numeric",year:"numeric"})}<b>{time}</b></div><button className="avatar">AS</button></div></header>
- {tab==="Live Map"&&<><div className="live"><span><i/> REALTIME <b>Connected</b></span><span>LIVE MONITORING · {time}</span></div><Kpis total={cameras.length} healthy={counts.healthy} offline={counts.offline}/><section className="map panel"><div ref={mapContainer} className="map-canvas"/><div className="district a">ANNA SALAI</div><div className="district b">GUINDY</div><div className="network"><p>CAMERA NETWORK</p><h2>{cameras.length}<small>Total cameras</small></h2>{([["Healthy",counts.healthy,"ok"],["Warning",counts.warning,"warn"],["Offline",counts.offline,"bad"]] as [string,number,string][]).map(x=><div className="stat" key={x[0]}><span><i className={x[2]}/>{x[0]}</span><b>{x[1]}</b></div>)}</div><div className="movement"><p>Latest movement</p><b>{realtimeTrajectory?.vehicle_id||"Awaiting realtime trajectory"}</b><span>{realtimeTrajectory?`${realtimeTrajectory.from_camera_id} → ${realtimeTrajectory.to_camera_id}`:"Listening for ANPR events…"}</span></div><div className="credit">© OpenStreetMap contributors • MapLibre</div></section></>}
+ {tab==="Live Map"&&<><div className="live"><span><i/> REALTIME <b>Connected</b></span><span>LIVE MONITORING · {time}</span></div><Kpis total={cameras.length} healthy={counts.healthy} offline={counts.offline}/><section className="map panel"><div ref={mapContainer} className="map-canvas"/><div className="district a">ANNA SALAI</div><div className="district b">GUINDY</div><div className="network"><p>CAMERA NETWORK</p><h2>{cameras.length}<small>Total cameras</small></h2>{([["Healthy",counts.healthy,"ok"],["Warning",counts.warning,"warn"],["Offline",counts.offline,"bad"]] as [string,number,string][]).map(x=><div className="stat" key={x[0]}><span><i className={x[2]}/>{x[0]}</span><b>{x[1]}</b></div>)}</div><div className="movement"><p>Latest movement</p><b>{realtimeTrajectory?.vehicle_id||"Awaiting realtime trajectory"}</b><span>{realtimeTrajectory?`${realtimeTrajectory.from_camera_id} → ${realtimeTrajectory.to_camera_id}`:"Listening for ANPR events…"}</span>{latestLiveAlert&&<div style={{marginTop:"8px",paddingTop:"6px",borderTop:"1px solid rgba(255,255,255,0.1)",fontSize:"11px",color:latestLiveAlert.severity.toUpperCase()==="CRITICAL"?"#f87171":"#fbbf24"}}><strong>🚨 LIVE ALERT:</strong> {latestLiveAlert.alert_type} ({latestLiveAlert.camera_id||`Vehicle #${latestLiveAlert.vehicle_id}`})</div>}</div><div className="credit">© OpenStreetMap contributors • MapLibre</div></section></>}
  {tab==="Analytics"&&
  <Analytics summary={analyticsSummary} cameraCounts={counts} loading={analyticsLoading} error={analyticsError} congestion={congestion} zones={zones} routeTraffic={routeTraffic} odMatrix={odMatrix} chartsLoading={chartsLoading} chartsError={chartsError}/>
  } {tab==="Vehicles"&&<Vehicles search={search} alerts={alerts} vehicleTrajectories={vehicleTrajectories} cameras={cameras} now={now} vehicleLoading={vehicleLoading}/>} {tab==="Alerts"&&<Alerts alerts={alerts} loading={alertsLoading} error={alertsError} activeCount={activeAlertCount}/>} {tab==="Settings"&&<Settings/>}</main></div>}

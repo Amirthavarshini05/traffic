@@ -1,5 +1,6 @@
 from app.database import get_connection
 import json
+from datetime import datetime
 
 
 MAX_SPEED_KMH = 120
@@ -116,6 +117,9 @@ def create_trajectory(event):
         vehicle_id = event["vehicle_id"]
         camera_id = event["camera_id"]
         observed_at = event["observed_at"]
+        if isinstance(observed_at, str):
+            clean_ts = observed_at.replace("Z", "+00:00")
+            observed_at = datetime.fromisoformat(clean_ts)
         current_confidence = event.get("confidence")
 
         # ==========================================================
