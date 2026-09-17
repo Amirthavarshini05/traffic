@@ -1,24 +1,45 @@
+import os
 import subprocess
 import sys
 import time
 
-PROJECT_DIR = r"D:\traffice_new"
+PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Auto-detect project virtual environment python
+VENV_PYTHON_WIN = os.path.join(PROJECT_DIR, "venv", "Scripts", "python.exe")
+VENV_PYTHON_UNIX = os.path.join(PROJECT_DIR, "venv", "bin", "python")
+
+if os.path.exists(VENV_PYTHON_WIN):
+    PYTHON_EXE = VENV_PYTHON_WIN
+elif os.path.exists(VENV_PYTHON_UNIX):
+    PYTHON_EXE = VENV_PYTHON_UNIX
+else:
+    PYTHON_EXE = sys.executable
 
 PROCESSES = [
-    ("FastAPI", [sys.executable, "-m", "uvicorn", "app.main:app"]),
-    ("Redis Consumer", [sys.executable, "redis_consumer.py"]),
-    ("Trajectory Publisher", [sys.executable, "trajectory_event_publisher.py"]),
-    ("Route Anomaly Worker", [sys.executable, "route_anomaly_worker.py"]),
-    ("Camera Health Worker", [sys.executable, "camera_health_worker.py"]),
-    ("Analytics Worker", [sys.executable, "analytics_worker.py"]),
+    ("FastAPI", [PYTHON_EXE, "-m", "uvicorn", "app.main:app"]),
+    ("Redis Consumer", [PYTHON_EXE, "redis_consumer.py"]),
+    ("Trajectory Publisher", [PYTHON_EXE, "trajectory_event_publisher.py"]),
+    ("Route Anomaly Worker", [PYTHON_EXE, "route_anomaly_worker.py"]),
+    ("Camera Health Worker", [PYTHON_EXE, "camera_health_worker.py"]),
+    ("Analytics Worker", [PYTHON_EXE, "analytics_worker.py"]),
 ]
+
+if "--demo" in sys.argv:
+    PROCESSES.append(("Live Simulation Streamer", [PYTHON_EXE, "demo_streamer.py", "--speed", "1.5"]))
 
 processes = []
 
 print("=" * 70)
 print("CITY TRAFFIC SYSTEM")
+print(f"Python interpreter: {PYTHON_EXE}")
 print("=" * 70)
 print()
+
+env = os.environ.copy()
+if os.path.exists(VENV_PYTHON_WIN):
+    venv_scripts = os.path.join(PROJECT_DIR, "venv", "Scripts")
+    env["PATH"] = venv_scripts + os.pathsep + env.get("PATH", "")
 
 for name, command in PROCESSES:
     print(f"Starting {name}...")
@@ -26,13 +47,14 @@ for name, command in PROCESSES:
     process = subprocess.Popen(
         command,
         cwd=PROJECT_DIR,
+        env=env,
         creationflags=subprocess.CREATE_NEW_CONSOLE
     )
 
     processes.append((name, process))
 
     print(f"{name} started. PID: {process.pid}")
-    time.sleep(2)
+    time.sleep(1)
 
 print()
 print("=" * 70)

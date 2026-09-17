@@ -1,3 +1,4 @@
+import os
 import osmnx as ox
 import networkx as nx
 from sklearn.neighbors import NearestNeighbors
@@ -5,7 +6,7 @@ from pyproj import Transformer
 import numpy as np
 
 
-GRAPH_FILE = r"D:\traffice_new\check\chennai_drive.graphml"
+GRAPH_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "chennai_drive.graphml")
 
 CAMERAS = {
     "CAM01": (80.2045, 13.0068),

@@ -14,14 +14,15 @@ from sklearn.neighbors import NearestNeighbors
 # CONFIG
 # ============================================================
 
-GRAPH_FILE = r"D:\traffice_new\check\chennai_drive.graphml"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+GRAPH_FILE = os.path.join(BASE_DIR, "chennai_drive.graphml")
 
 DB_CONFIG = {
-    "host": "localhost",
-    "database": "city_traffic",
-    "user": "postgres",
-    "password": "varsha",
-    "port": 5432
+    "host": os.getenv("PGHOST", "localhost"),
+    "database": os.getenv("PGDATABASE", "city_traffic"),
+    "user": os.getenv("PGUSER", "postgres"),
+    "password": os.getenv("PGPASSWORD", "varsha"),
+    "port": int(os.getenv("PGPORT", "5432"))
 }
 
 NEARBY_NODE_COUNT = 20

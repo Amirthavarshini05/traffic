@@ -3,6 +3,8 @@ from .realtime import manager, redis_trajectory_listener
 from fastapi.middleware.cors import CORSMiddleware
 from .database import get_connection
 from datetime import datetime, timezone
+from typing import Optional
+from .advanced_routes import router as advanced_router
 from .schemas import (
     VehicleTrajectoryResponse,
     ODMatrixResponse,
@@ -24,6 +26,8 @@ import json
 import asyncio
 
 app = FastAPI(title="City Traffic API")
+app.include_router(advanced_router)
+
 @app.on_event("startup")
 async def startup_realtime_listener():
     asyncio.create_task(
@@ -121,7 +125,14 @@ def get_vehicle_trajectory(vehicle_id: int):
     "/analytics/od-matrix",
     response_model=ODMatrixResponse
 )
-def get_od_matrix():
+def get_od_matrix(
+    start_time: Optional[str] = Query(None),
+    end_time: Optional[str] = Query(None),
+    origin: Optional[str] = Query(None),
+    destination: Optional[str] = Query(None),
+    limit: int = Query(100, le=500),
+    offset: int = Query(0)
+):
 
     conn = get_connection()
 
@@ -134,15 +145,35 @@ def get_od_matrix():
                 destination_camera_id AS destination,
                 COUNT(*) AS vehicle_count
             FROM trips
+            WHERE 1=1
+        """
+        params = []
+        if start_time:
+            query += " AND started_at >= %s"
+            params.append(start_time)
+        if end_time:
+            query += " AND started_at <= %s"
+            params.append(end_time)
+        if origin:
+            query += " AND origin_camera_id = %s"
+            params.append(origin)
+        if destination:
+            query += " AND destination_camera_id = %s"
+            params.append(destination)
+
+        query += """
             GROUP BY
                 origin_camera_id,
                 destination_camera_id
             ORDER BY
+                vehicle_count DESC,
                 origin_camera_id,
-                destination_camera_id;
+                destination_camera_id
+            LIMIT %s OFFSET %s;
         """
+        params.extend([limit, offset])
 
-        cursor.execute(query)
+        cursor.execute(query, tuple(params))
         rows = cursor.fetchall()
 
         cursor.close()
@@ -282,7 +313,17 @@ def get_historical_congestion(
     "/alerts",
     response_model=AlertsResponse
 )
-def get_alerts():
+def get_alerts(
+    severity: Optional[str] = Query(None),
+    alert_type: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    camera_id: Optional[str] = Query(None),
+    vehicle_id: Optional[int] = Query(None),
+    start_time: Optional[str] = Query(None),
+    end_time: Optional[str] = Query(None),
+    limit: int = Query(100, le=1000),
+    offset: int = Query(0)
+):
 
     conn = get_connection()
 
@@ -316,12 +357,40 @@ def get_alerts():
             LEFT JOIN zones z
                 ON ST_Within(c.location, z.boundary)
 
+            WHERE 1=1
+        """
+        params = []
+        if severity:
+            query += " AND a.severity = %s"
+            params.append(severity)
+        if alert_type:
+            query += " AND a.alert_type = %s"
+            params.append(alert_type)
+        if status:
+            query += " AND a.status = %s"
+            params.append(status)
+        if camera_id:
+            query += " AND a.camera_id = %s"
+            params.append(camera_id)
+        if vehicle_id:
+            query += " AND a.vehicle_id = %s"
+            params.append(vehicle_id)
+        if start_time:
+            query += " AND a.detected_at >= %s"
+            params.append(start_time)
+        if end_time:
+            query += " AND a.detected_at <= %s"
+            params.append(end_time)
+
+        query += """
             ORDER BY
                 a.detected_at DESC,
-                a.alert_id DESC;
+                a.alert_id DESC
+            LIMIT %s OFFSET %s;
         """
+        params.extend([limit, offset])
 
-        cursor.execute(query)
+        cursor.execute(query, tuple(params))
         rows = cursor.fetchall()
 
         cursor.close()

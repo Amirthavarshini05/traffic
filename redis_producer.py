@@ -1,8 +1,14 @@
+import os
 import json
+<<<<<<< HEAD
 import os
 import redis
 from datetime import datetime, timezone
 from dotenv import load_dotenv
+=======
+from datetime import datetime, timezone
+from app.database import get_redis_client
+>>>>>>> a9331665902c117f4454d08a61250aaf29124ea5
 
 load_dotenv()
 
@@ -10,6 +16,7 @@ load_dotenv()
 # Redis connection
 # --------------------------------------------------
 
+<<<<<<< HEAD
 redis_client = redis.Redis(
     host=os.getenv("REDIS_HOST"),
     port=int(os.getenv("REDIS_PORT", "6379")),
@@ -18,6 +25,9 @@ redis_client = redis.Redis(
     ssl=os.getenv("REDIS_SSL", "false").lower() == "true",
     decode_responses=True
 )
+=======
+redis_client = get_redis_client(decode_responses=True)
+>>>>>>> a9331665902c117f4454d08a61250aaf29124ea5
 
 STREAM_NAME = "anpr_events"
 

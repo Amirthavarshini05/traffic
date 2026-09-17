@@ -272,3 +272,107 @@ class CameraRouteEntry(BaseModel):
 
 class CameraRoutesResponse(BaseModel):
     routes: list[CameraRouteEntry]
+
+
+# ====================================================================
+# Advanced Production Schemas
+# ====================================================================
+
+class ObservationGap(BaseModel):
+    previous_camera: str
+    previous_timestamp: str
+    next_camera: str
+    next_timestamp: str
+    gap_duration_seconds: float
+    status: str = "unknown"
+
+
+class EnhancedVehicleTrajectoryResponse(BaseModel):
+    vehicle_id: int
+    plate_number: Optional[str] = None
+    first_seen: Optional[str] = None
+    last_seen: Optional[str] = None
+    total_duration_seconds: Optional[float] = None
+    unique_cameras_count: int = 0
+    detection_count: int = 0
+    trajectory: list[dict] = []
+    observation_gaps: list[ObservationGap] = []
+
+
+class CameraDetailResponse(BaseModel):
+    camera_id: str
+    name: str
+    status: str
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    last_observation_at: Optional[str] = None
+    data_freshness_seconds: Optional[float] = None
+    freshness_status: str
+    detection_count_24h: int = 0
+    unique_vehicles_24h: int = 0
+    active_alerts_count: int = 0
+
+
+class MetricComparison(BaseModel):
+    current_value: Optional[float] = None
+    baseline_value: Optional[float] = None
+    difference: Optional[float] = None
+    percentage_change: Optional[float] = None
+    baseline_type: str
+    period_start: str
+    period_end: str
+    status: str = "available"
+
+
+class RouteComparisonResponse(BaseModel):
+    route_id: str
+    from_camera_id: str
+    to_camera_id: str
+    volume_comparison: MetricComparison
+    travel_time_comparison: MetricComparison
+    congestion_level: str
+    speed_kmh: Optional[float] = None
+    speed_status: str = "unavailable"
+
+
+class SystemHealthServiceStatus(BaseModel):
+    name: str
+    status: str
+    last_activity_at: Optional[str] = None
+    latency_ms: Optional[float] = None
+    error_count: Optional[int] = 0
+    details: Optional[str] = None
+
+
+class SystemHealthResponse(BaseModel):
+    overall_status: str
+    services: list[SystemHealthServiceStatus]
+    cameras: dict
+    data_freshness: dict
+
+
+class WatchlistEntry(BaseModel):
+    watchlist_id: int
+    plate_number: str
+    status: str
+    reason: Optional[str] = None
+    case_reference: Optional[str] = None
+    priority: str = "HIGH"
+    created_at: Optional[str] = None
+
+
+class WatchlistResponse(BaseModel):
+    watchlist: list[WatchlistEntry]
+
+
+class VehicleSearchItem(BaseModel):
+    vehicle_id: int
+    plate_number: str
+    first_seen: Optional[str] = None
+    last_seen: Optional[str] = None
+    detection_count: int = 0
+
+
+class VehicleSearchResponse(BaseModel):
+    query: str
+    results: list[VehicleSearchItem]

@@ -1,3 +1,4 @@
+import os
 import osmnx as ox
 import networkx as nx
 import psycopg2
@@ -7,14 +8,14 @@ from sklearn.neighbors import NearestNeighbors
 from pyproj import Transformer
 
 
-GRAPH_PATH = r"D:\traffice_new\check\chennai_drive.graphml"
+GRAPH_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "chennai_drive.graphml")
 
 DB_CONFIG = {
-    "host": "localhost",
-    "database": "city_traffic",
-    "user": "postgres",
-    "password": "varsha",
-    "port": 5432,
+    "host": os.getenv("PGHOST", "localhost"),
+    "database": os.getenv("PGDATABASE", "city_traffic"),
+    "user": os.getenv("PGUSER", "postgres"),
+    "password": os.getenv("PGPASSWORD", "varsha"),
+    "port": int(os.getenv("PGPORT", "5432")),
 }
 
 ROUTES = [

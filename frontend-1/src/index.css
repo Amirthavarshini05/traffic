@@ -1,0 +1,252 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Dark theme (default) */
+  :root,
+  [data-theme='dark'] {
+    --bg-base: #0B1220;
+    --bg-surface: #111A2B;
+    --bg-elevated: #162238;
+    --bg-hover: #1C2D48;
+    --border: #26344A;
+    --border-subtle: #1E2A3D;
+    --border-strong: #33445F;
+    --text-primary: #F5F7FA;
+    --text-secondary: #94A3B8;
+    --text-muted: #64748B;
+    --accent: #2F80ED;
+    --accent-light: #5DA9FF;
+    --accent-dim: #1B5DBE;
+    --map-bg: #0B1220;
+    --map-tile-opacity: 0.15;
+    --route-color: #2F80ED;
+    --route-opacity: 0.4;
+    --selected-route-color: #5DA9FF;
+    --selected-route-opacity: 0.8;
+    --camera-ring: rgba(255,255,255,0.3);
+    --shadow-panel: none;
+  }
+
+  /* Light theme */
+  [data-theme='light'] {
+    --bg-base: #F1F5F9;
+    --bg-surface: #FFFFFF;
+    --bg-elevated: #F8FAFC;
+    --bg-hover: #E2E8F0;
+    --border: #CBD5E1;
+    --border-subtle: #E2E8F0;
+    --border-strong: #94A3B8;
+    --text-primary: #0F172A;
+    --text-secondary: #475569;
+    --text-muted: #94A3B8;
+    --accent: #2563EB;
+    --accent-light: #3B82F6;
+    --accent-dim: #1D4ED8;
+    --map-bg: #E2E8F0;
+    --map-tile-opacity: 0.6;
+    --route-color: #3B82F6;
+    --route-opacity: 0.5;
+    --selected-route-color: #1D4ED8;
+    --selected-route-opacity: 0.9;
+    --camera-ring: rgba(0,0,0,0.2);
+    --shadow-panel: 0 1px 3px rgba(0,0,0,0.08);
+  }
+
+  body {
+    background-color: var(--bg-base);
+    color: var(--text-primary);
+  }
+}
+
+@layer components {
+  .panel {
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    box-shadow: var(--shadow-panel);
+  }
+  .panel-elevated {
+    background-color: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: var(--border);
+    border-radius: 3px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: var(--border-strong);
+  }
+  .text-primary { color: var(--text-primary); }
+  .text-secondary { color: var(--text-secondary); }
+  .text-muted { color: var(--text-muted); }
+  .bg-base { background-color: var(--bg-base); }
+  .bg-surface { background-color: var(--bg-surface); }
+  .bg-elevated { background-color: var(--bg-elevated); }
+  .bg-hover { background-color: var(--bg-hover); }
+  .border-default { border-color: var(--border); }
+  .border-subtle { border-color: var(--border-subtle); }
+  .border-strong { border-color: var(--border-strong); }
+  .text-accent { color: var(--accent); }
+  .text-accent-light { color: var(--accent-light); }
+  .bg-accent { background-color: var(--accent); }
+  .bg-accent-dim { background-color: var(--accent-dim); }
+}
+
+.maplibregl-popup-content {
+  background: var(--bg-elevated) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 6px !important;
+  padding: 0 !important;
+  color: var(--text-primary) !important;
+  box-shadow: var(--shadow-panel) !important;
+}
+.maplibregl-popup-tip {
+  border-top-color: var(--border) !important;
+  border-bottom-color: var(--border) !important;
+}
+.maplibregl-ctrl-attrib {
+  display: none !important;
+}
+.maplibregl-ctrl-group {
+  background: var(--bg-elevated) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 6px !important;
+}
+.maplibregl-ctrl-group button {
+  background: var(--bg-elevated) !important;
+}
+.maplibregl-ctrl-group button:hover {
+  background: var(--bg-hover) !important;
+}
+.maplibregl-ctrl-icon {
+  filter: invert(0.5);
+}
+[data-theme='dark'] .maplibregl-ctrl-icon {
+  filter: invert(1);
+}
+
+/* MapLibre DOM Marker Architecture:
+   Wrapper has NO CSS transform so MapLibre translate3d is 100% stable during zoom/pan.
+   Transform scaling is strictly applied to the inner dot. */
+.camera-marker-wrapper {
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  pointer-events: auto;
+}
+
+.camera-marker-dot {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  background: var(--marker, #10b981);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--marker, #10b981) 30%, transparent), 0 0 8px var(--marker, #10b981);
+  transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  font-size: 9px;
+  color: #ffffff;
+}
+
+.camera-marker-wrapper:hover .camera-marker-dot {
+  transform: scale(1.35);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--marker, #10b981) 50%, transparent), 0 0 16px var(--marker, #10b981);
+  z-index: 50;
+}
+
+.camera-marker-dot.selected {
+  width: 18px;
+  height: 18px;
+  border-width: 2.5px;
+  transform: scale(1.2);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--marker, #10b981) 40%, transparent), 0 0 20px var(--marker, #10b981);
+}
+
+.camera-marker-dot.is-origin {
+  width: 20px;
+  height: 20px;
+  background: #10b981 !important;
+  border: 2px solid #ffffff !important;
+  box-shadow: 0 0 0 5px rgba(16, 185, 129, 0.45), 0 0 16px #10b981;
+}
+.camera-marker-dot.is-origin::after {
+  content: 'O';
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.camera-marker-dot.is-dest {
+  width: 20px;
+  height: 20px;
+  background: #f59e0b !important;
+  border: 2px solid #ffffff !important;
+  box-shadow: 0 0 0 5px rgba(245, 158, 11, 0.45), 0 0 16px #f59e0b;
+}
+.camera-marker-dot.is-dest::after {
+  content: 'D';
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.camera-marker-dot.has-incident {
+  background: #ef4444 !important;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.4), 0 0 14px #ef4444 !important;
+}
+.camera-marker-dot.has-incident::before {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  border: 2px solid #ef4444;
+  animation: ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+.map-hover-tooltip {
+  pointer-events: none;
+  font-family: 'Inter', system-ui, sans-serif;
+  letter-spacing: -0.01em;
+}
+
