@@ -21,19 +21,7 @@ load_dotenv()
 # Redis
 # --------------------------------------------------
 
-<<<<<<< HEAD
-redis_client = redis.Redis(
-    host=os.getenv("REDIS_HOST"),
-    port=int(os.getenv("REDIS_PORT", "6379")),
-    username=os.getenv("REDIS_USERNAME", "default"),
-    password=os.getenv("REDIS_PASSWORD"),
-    ssl=os.getenv("REDIS_SSL", "false").lower() == "true",
-    decode_responses=True,
-    socket_timeout=None
-)
-=======
 redis_client = get_redis_client(decode_responses=True, socket_timeout=None)
->>>>>>> a9331665902c117f4454d08a61250aaf29124ea5
 
 STREAM_NAME = "anpr_events"
 GROUP_NAME = "traffic_backend"
@@ -44,16 +32,6 @@ CONSUMER_NAME = "backend_01"
 # PostgreSQL
 # --------------------------------------------------
 
-<<<<<<< HEAD
-db_conn = psycopg2.connect(
-    host=os.getenv("DB_HOST"),
-    port=os.getenv("DB_PORT", "5432"),
-    database=os.getenv("DB_NAME", "postgres"),
-    user=os.getenv("DB_USER"),
-    password=os.getenv("DB_PASSWORD"),
-    sslmode=os.getenv("DB_SSLMODE", "require")
-)
-=======
 db_conn = get_connection()
 
 
@@ -118,7 +96,6 @@ def check_watchlist_and_alert(conn, event_dict):
         print(f"Watchlist check error: {err}")
     finally:
         cur.close()
->>>>>>> a9331665902c117f4454d08a61250aaf29124ea5
 
 
 # --------------------------------------------------

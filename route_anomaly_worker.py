@@ -2,13 +2,8 @@ import os
 import json
 import os
 import redis
-
-<<<<<<< HEAD
 from dotenv import load_dotenv
-from app.database import get_connection
-=======
 from app.database import get_connection, get_redis_client
->>>>>>> a9331665902c117f4454d08a61250aaf29124ea5
 
 
 # =========================================================
@@ -22,15 +17,6 @@ load_dotenv()
 # Redis Configuration
 # =========================================================
 
-<<<<<<< HEAD
-REDIS_HOST = os.getenv("REDIS_HOST")
-REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
-REDIS_USERNAME = os.getenv("REDIS_USERNAME", "default")
-REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
-REDIS_SSL = os.getenv("REDIS_SSL", "false").lower() == "true"
-
-=======
->>>>>>> a9331665902c117f4454d08a61250aaf29124ea5
 TRAJECTORY_STREAM = "trajectory_events"
 CONSUMER_GROUP = "route_anomaly"
 CONSUMER_NAME = "route_anomaly_01"
@@ -40,19 +26,7 @@ CONSUMER_NAME = "route_anomaly_01"
 # Redis Connection
 # =========================================================
 
-<<<<<<< HEAD
-redis_client = redis.Redis(
-    host=REDIS_HOST,
-    port=REDIS_PORT,
-    username=REDIS_USERNAME,
-    password=REDIS_PASSWORD,
-    ssl=REDIS_SSL,
-    decode_responses=True,
-    socket_timeout=None
-)
-=======
 redis_client = get_redis_client(decode_responses=True, socket_timeout=None)
->>>>>>> a9331665902c117f4454d08a61250aaf29124ea5
 
 
 # =========================================================
