@@ -168,7 +168,7 @@ export function Alerts({ onNavigate }: { onNavigate: (p: NavPageId) => void }) {
                       {currentAlert.title}
                     </h2>
                     <p className="text-[11px] text-text-muted">
-                      Incident ID: {currentAlert.alert_id} · Authority: {currentAlert.authority || 'City Traffic Control'}
+                      Incident ID: {currentAlert.alert_id} · Authority: {currentAlert.authority || 'VISTA Traffic Control'}
                     </p>
                   </div>
                 </div>

@@ -216,7 +216,7 @@ export function TopBarOmnibar({ onNavigate }: TopBarOmnibarProps) {
             </div>
             <div className="flex-1 min-w-0">
               <span className="text-[10px] uppercase font-semibold text-accent-light tracking-wide block">
-                Ask Traffic Assistant
+                Ask VISTA Assistant
               </span>
               <span className="text-xs text-text-primary truncate block font-medium">
                 "{query}"

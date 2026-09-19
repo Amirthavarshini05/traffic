@@ -86,21 +86,21 @@ export function FloatingQueryAssistant({ onNavigate }: FloatingQueryAssistantPro
           open && 'hidden'
         )}
         id="ask-traffic-trigger"
-        title="Open Traffic Intelligence Assistant"
+        title="Open VISTA Intelligence Assistant"
       >
         <span className="text-sm">💬</span>
-        <span className="tracking-wide">Ask Traffic</span>
+        <span className="tracking-wide">Ask VISTA</span>
       </button>
 
       <SelectionDrawer
         open={open}
         onClose={() => setOpen(false)}
-        title="Traffic Intelligence Assistant"
+        title="VISTA Intelligence Assistant"
         subtitle="Operational and query intelligence drawer"
       >
         <div className="flex flex-col gap-3">
           <Badge color="blue" size="sm" className="self-start">
-            <Brain className="w-3 h-3" /> Realtime Traffic Assistant
+            <Brain className="w-3 h-3" /> Realtime VISTA Assistant
           </Badge>
 
           {/* Query input */}

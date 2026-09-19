@@ -54,16 +54,16 @@ export function TopBar({
           {sidebarCollapsed ? <PanelLeft className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
         </button>
 
-        <div className="flex items-center gap-2 cursor-pointer" onClick={() => onNavigate('command')}>
-          <div className="w-7 h-7 rounded bg-accent/15 flex items-center justify-center shrink-0">
+        <div className="flex items-center gap-3 cursor-pointer" onClick={() => onNavigate('command')}>
+          <div className="w-8 h-8 rounded-md border border-accent/30 bg-accent/10 flex items-center justify-center shrink-0 shadow-[inset_0_0_0_1px_rgba(142,160,255,0.12)]">
             <ShieldCheck className="w-4 h-4 text-accent-light" />
           </div>
-          <div className="min-w-0">
-            <p className="text-[11px] font-bold text-text-primary leading-tight tracking-wide">
-              CITY TRAFFIC
+          <div className="min-w-0 leading-none">
+            <p className="text-[11px] font-black tracking-[0.18em] text-text-primary uppercase" title="VISTA">
+              VISTA
             </p>
-            <p className="text-[9px] text-text-muted leading-tight">
-              Intelligence Command
+            <p className="mt-0.5 text-[9px] font-medium tracking-[0.08em] text-text-muted uppercase truncate" title="Vehicle Intelligence, Surveillance & Traffic Analytics">
+              Vehicle Intelligence, Surveillance & Traffic Analytics
             </p>
           </div>
         </div>

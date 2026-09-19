@@ -81,11 +81,11 @@ export function Sidebar({ activePage, onNavigate, collapsed }: SidebarProps) {
         </div>
         {!collapsed && (
           <div className="min-w-0">
-            <p className="text-[11px] font-bold text-text-primary leading-tight tracking-wide">
-              CITY TRAFFIC
+            <p className="text-[11px] font-bold text-text-primary leading-tight tracking-wide" title="VISTA">
+              VISTA
             </p>
-            <p className="text-[9px] text-text-muted leading-tight">
-              Intelligence Command
+            <p className="text-[9px] text-text-muted leading-tight truncate" title="Vehicle Intelligence, Surveillance & Traffic Analytics">
+              Vehicle Intelligence, Surveillance & Traffic Analytics
             </p>
           </div>
         )}
